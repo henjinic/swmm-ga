@@ -137,27 +137,29 @@ class Chromosome:
             tmp_tag = random.choice([i for i in range(12) if max_subcatch[i] >= self._num_subcatch[i]])
 
             if tmp_tag != parent_tag:
-                parent_tag = -1
                 self._count = 0
                 self._num_cluster = self._num_cluster + 1
-                parent_tag = tmp_tag
+
+            cur_tag = tmp_tag
+        else:
+            cur_tag = parent_tag
 
         self._count = self._count + 1
-        self._genes[x][y] = parent_tag
-        self._num_subcatch[parent_tag] = self._num_subcatch[parent_tag] + whole_map[x][y].Area
+        self._genes[x][y] = cur_tag
+        self._num_subcatch[cur_tag] += whole_map[x][y].Area
 
         random_direction = [0, 1, 2, 3]
         random.shuffle(random_direction)
 
         for i in random_direction:
             if i == 0 and map_direction[x][y][0]== 'T' and x>0:
-                self.make_first_gene(x-1, y, parent_tag)
+                self.make_first_gene(x-1, y, cur_tag)
             if i == 1 and map_direction[x][y][2]== 'T' and x<110:
-                self.make_first_gene(x+1, y, parent_tag)
+                self.make_first_gene(x+1, y, cur_tag)
             if i == 2 and map_direction[x][y][1]== 'T' and y>0:
-                self.make_first_gene(x, y-1, parent_tag)
+                self.make_first_gene(x, y-1, cur_tag)
             if i == 3 and map_direction[x][y][3]== 'T' and y<70:
-                self.make_first_gene(x, y+1, parent_tag)
+                self.make_first_gene(x, y+1, cur_tag)
 
     def crossover1(self, second):
         first_genes = copy.deepcopy(self._genes)
