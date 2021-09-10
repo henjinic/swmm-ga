@@ -1,23 +1,32 @@
 # -*- coding: utf-8 -*-
-subcatchments = pcpy.SWMM.Subcatchments
+# subcatchments = pcpy.SWMM.Subcatchments
 import random
+import collections
 import copy
 import math
 
+Subcatchment = collections.namedtuple("Subcatchment", ["Area"])
 
-whole_map = []
-map_direction = []
+def read_subcatchments():
+    result = {}
 
-for i in range(111):
-    tmp_map = []
-    tmp_dir = []
+    with open("sub_og.csv") as f:
+        f.readline()
 
-    for j in range(71):
-        tmp_map.append(None)
-        tmp_dir.append("")
+        for line in f:
+            key, _, _, _, area, *_ = line.strip().split(',')
+            result[key] = Subcatchment(float(area))
 
-    whole_map.append(tmp_map)
-    map_direction.append(tmp_dir)
+    return result
+
+subcatchments = read_subcatchments()
+
+
+def create_grid(height, width, value):
+    return [[value] * width for _ in range(height)]
+
+whole_map = create_grid(111, 71, None)
+map_direction = create_grid(111, 71, "")
 
 for key in subcatchments.keys():
     if key[1] != 'D' and key[1] != 'N':
@@ -27,7 +36,7 @@ for key in subcatchments.keys():
         map_direction[tmp_x][tmp_y] = tmp_dir
         whole_map[tmp_x][tmp_y] = subcatchments.get(key)
 
-max_subcatch = {
+max_subcatch_dict = {
     "공동주택": 63.924,
     "주상복합": 14.3891,
     "근린생활시설": 3.99112,
@@ -41,7 +50,7 @@ max_subcatch = {
     "공공공지": 2.56442,
     "보행자전용도로": 2.01097,
 }
-rate_subcatch = {
+rate_subcatch_dict = {
     "공동주택": 798,
     "주상복합": 173,
     "근린생활시설": 69,
@@ -98,12 +107,15 @@ pavement = {
     "보행자전용도로": 1,
 }
 
+max_subcatch = list(max_subcatch_dict.values())
+rate_subcatch = list(rate_subcatch_dict.values())
+
 rate_arr = []
 
-for key in rate_subcatch.keys():
-    for i in range(rate_subcatch.get(key)):
-        rate_arr.append(key)
-
+# for key in rate_subcatch.keys():
+#     for i in range(rate_subcatch.get(key)):
+#         rate_arr.append(key)
+rate_arr = list(range(12))
 
 class Chromosome:
 
@@ -113,7 +125,7 @@ class Chromosome:
         self._score = 100
 
     def first_generation(self):
-        self._num_subcatch = {
+        self._num_subcatch_dict = {
             "공동주택": 0,
             "주상복합": 0,
             "근린생활시설": 0,
@@ -128,10 +140,12 @@ class Chromosome:
             "보행자전용도로": 0
         }
 
+        self._num_subcatch = [0] * 12
+
         for i in range(111):
             for j in range(71):
                 self._count = 0
-                self.make_first_gene(i, j, "")
+                self.make_first_gene(i, j, -1)
 
     def make_first_gene(self, x, y, parent_tag):
         global max_subcatch, rate_arr, imperv, map_direction, whole_map
@@ -139,20 +153,20 @@ class Chromosome:
         if map_direction[x][y] == "":
             return
 
-        if self._genes[x][y] !="":
+        if self._genes[x][y] != -1:
             return
 
-        if self._count%8 == 0: # 여기에 있는 숫자 8을 바꾸면 처음 만들 때 묶음 수를 바꿀 수 있음. 커질수록 클러스터 단위가 커짐.
+        if self._count % 8 == 0: # 여기에 있는 숫자 8을 바꾸면 처음 만들 때 묶음 수를 바꿀 수 있음. 커질수록 클러스터 단위가 커짐.
             tmp_tag = random.choice(rate_arr)
 
-            while max_subcatch.get(tmp_tag) < self._num_subcatch.get(tmp_tag):
+            while max_subcatch[tmp_tag] < self._num_subcatch[tmp_tag]:
                 tmp_tag = random.choice(rate_arr)
 
             if tmp_tag != parent_tag:
-                parent_tag = ""
+                parent_tag = -1
                 self._count = 0
 
-        if parent_tag == "" and self._count == 0:
+        if parent_tag == -1 and self._count == 0:
             self._num_cluster = self._num_cluster + 1
             parent_tag = tmp_tag
 
@@ -219,9 +233,9 @@ class Chromosome:
 
         for i in range(length):
             for j in range(length):
-                if self._genes[x1+i][y1+j] != "" and tmp2[i][j] !="":
+                if self._genes[x1+i][y1+j] != -1 and tmp2[i][j] != -1:
                     self._genes[x1+i][y1+j] = tmp2[i][j]
-                if self._genes[x2+i][y2+j] != "" and tmp1[i][j] !="":
+                if self._genes[x2+i][y2+j] != -1 and tmp1[i][j] != -1:
                     self._genes[x2+i][y2+j] = tmp1[i][j]
 
     def cluster(self):
@@ -229,12 +243,12 @@ class Chromosome:
         for i in range(111):
             tmp_cluster = []
             for j in range(71):
-                tmp_cluster.append("")
+                tmp_cluster.append(-1)
             self._cluster_array.append(tmp_cluster)
 
         for i in range(111):
             for j in range(71):
-                self.count_cluster(i, j, "")
+                self.count_cluster(i, j, -1)
 
         return self._num_cluster
 
@@ -245,12 +259,12 @@ class Chromosome:
         if map_direction[x][y] == "":
             return
 
-        if self._cluster_array[x][y] != "":
+        if self._cluster_array[x][y] != -1:
             return
 
         self._cluster_array[x][y] = tag
 
-        if parent_tag == "":
+        if parent_tag == -1:
             self._num_cluster = self._num_cluster + 1
             parent_tag = tag
 
@@ -269,47 +283,65 @@ class Chromosome:
 
     def rate_fitness(self, x):
         global max_subcatch, whole_map
-        tmp_num_subcatch = {"공동주택":0, "주상복합":0, "근린생활시설":0, "상업시설":0, "유보형복합용지":0, "자족복합용지":0, "자족시설":0, "업무시설":0, "공원":0, "녹지":0, "공공공지":0, "보행자전용도로":0}
+        tmp_num_subcatch_dict = {
+            "공동주택": 0,
+            "주상복합":0,
+            "근린생활시설":0,
+            "상업시설":0,
+            "유보형복합용지":0,
+            "자족복합용지":0,
+            "자족시설":0,
+            "업무시설":0,
+            "공원":0,
+            "녹지":0,
+            "공공공지":0,
+            "보행자전용도로":0
+        }
+        tmp_num_subcatch = list(tmp_num_subcatch_dict.values())
+
+
         for i in range(111):
             for j in range(71):
-                if self._genes[i][j] != "":
+                if self._genes[i][j] != -1:
                     tmp_num_subcatch[self._genes[i][j]] += whole_map[i][j].Area
         result = True
-        for key in tmp_num_subcatch.keys():
-            test_num = tmp_num_subcatch.get(key)
-            max_num = max_subcatch.get(key)
+        for i in range(12):
+            test_num = tmp_num_subcatch[i]
+            max_num = max_subcatch[i]
             if int(max_num*(1-x)) > test_num or int(max_num*(1+x)) < test_num:
                 result = False
                 break
         return result
 
     def run(self):
-        global imperv, greenroof, pavement
+        # global imperv, greenroof, pavement
 
-        for x in range(111):
-            for y in range(71):
-                tmp_subcatchment = whole_map[x][y]
+        # for x in range(111):
+        #     for y in range(71):
+        #         tmp_subcatchment = whole_map[x][y]
 
-                if tmp_subcatchment is None:
-                    continue
+        #         if tmp_subcatchment is None:
+        #             continue
 
-                if self._genes[x][y] == "":
-                    continue
+        #         if self._genes[x][y] == "":
+        #             continue
 
-                tmp_subcatchment.Tag = self._genes[x][y]
-                tmp_subcatchment.ImpervPercent = imperv[tmp_subcatchment.Tag] * 100
-                lids = tmp_subcatchment.LIDUsages
-                lids['GreenRoof_2'].AreaOfEachUnit = tmp_subcatchment.Area * 10000 * greenroof[tmp_subcatchment.Tag]
-                lids['GreenRoof_2'].SurfaceWidth = math.sqrt(lids['GreenRoof_2'].AreaOfEachUnit)
-                lids['pavement_2'].AreaOfEachUnit = tmp_subcatchment.Area * 10000 * pavement[tmp_subcatchment.Tag]
-                lids['pavement_2'].SurfaceWidth = math.sqrt(lids['pavement_2'].AreaOfEachUnit)
+        #         tmp_subcatchment.Tag = self._genes[x][y]
+        #         tmp_subcatchment.ImpervPercent = imperv[tmp_subcatchment.Tag] * 100
+        #         lids = tmp_subcatchment.LIDUsages
+        #         lids['GreenRoof_2'].AreaOfEachUnit = tmp_subcatchment.Area * 10000 * greenroof[tmp_subcatchment.Tag]
+        #         lids['GreenRoof_2'].SurfaceWidth = math.sqrt(lids['GreenRoof_2'].AreaOfEachUnit)
+        #         lids['pavement_2'].AreaOfEachUnit = tmp_subcatchment.Area * 10000 * pavement[tmp_subcatchment.Tag]
+        #         lids['pavement_2'].SurfaceWidth = math.sqrt(lids['pavement_2'].AreaOfEachUnit)
 
-        pcpy.SWMM.run()
-        report_file = pcpy.Graph.Files[0]
-        func = report_file.get_function('Runoff', 'm3/s', 'System')
-        tmp_loc = func.get_location('System')
-        tmp_obj = tmp_loc.get_objective_function(0, 0)
-        self._score = tmp_obj.Total
+        # pcpy.SWMM.run()
+        # report_file = pcpy.Graph.Files[0]
+        # func = report_file.get_function('Runoff', 'm3/s', 'System')
+        # tmp_loc = func.get_location('System')
+        # tmp_obj = tmp_loc.get_objective_function(0, 0)
+        # self._score = tmp_obj.Total
+
+        self._score = random.randint(0, 100)
 
 
 class GeneticAlgorithm:
@@ -317,6 +349,7 @@ class GeneticAlgorithm:
     def __init__(self, population):
         self._population = population
         self._chromosomes = []
+        self._cur_step = 0
 
     def _run(self, best_case=4, generation=100, mutation_rate=0.1):
         empty_gene = []
@@ -325,7 +358,7 @@ class GeneticAlgorithm:
             tmp_empty_gene = []
 
             for j in range(71):
-                tmp_empty_gene.append("")
+                tmp_empty_gene.append(-1)
 
             empty_gene.append(tmp_empty_gene)
 
@@ -396,7 +429,40 @@ class GeneticAlgorithm:
             print("population decrease!!")
         print("local best : " + str(self._chromosomes[0]._score))
 
+        save_list(f"step{self._cur_step}.csv", self._chromosomes[0]._genes)
+        self._cur_step += 1
 
-ga = GeneticAlgorithm(polulation=100)
 
-ga._run(best_case=6, generation=5, mutation_rate=0.05)
+def save_list(path, data):
+    with open(path, "w") as f:
+        for line in data:
+            f.write(",".join(map(str, line)) + "\n")
+
+
+def main():
+    ga = GeneticAlgorithm(population=20)
+
+    ga._run(best_case=2, generation=5, mutation_rate=0.05)
+
+    # empty_gene = []
+
+    # for i in range(111):
+    #     tmp_empty_gene = []
+
+    #     for j in range(71):
+    #         tmp_empty_gene.append(-1)
+
+    #     empty_gene.append(tmp_empty_gene)
+
+    # chromosome = Chromosome(empty_gene)
+
+    # chromosome.first_generation()
+
+    # save_list("result.csv", chromosome._genes)
+
+
+
+
+
+if __name__ == "__main__":
+    main()
