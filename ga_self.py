@@ -352,15 +352,7 @@ class GeneticAlgorithm:
         self._cur_step = 0
 
     def _run(self, best_case=4, generation=100, mutation_rate=0.1):
-        empty_gene = []
-
-        for i in range(111):
-            tmp_empty_gene = []
-
-            for j in range(71):
-                tmp_empty_gene.append(-1)
-
-            empty_gene.append(tmp_empty_gene)
+        empty_gene = create_grid(111, 71, -1)
 
         for i in range(self._population):
             tmp_gene = copy.deepcopy(empty_gene)
