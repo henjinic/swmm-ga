@@ -34,7 +34,7 @@ for key in subcatchments.keys():
         tmp_y = int(key[4:6])
         tmp_dir = key[6:10]
         map_direction[tmp_x][tmp_y] = tmp_dir
-        whole_map[tmp_x][tmp_y] = subcatchments.get(key)
+        whole_map[tmp_x][tmp_y] = subcatchments[key]
 
 max_subcatch_dict = {
     "공동주택": 63.924,
@@ -110,12 +110,6 @@ pavement = {
 max_subcatch = list(max_subcatch_dict.values())
 rate_subcatch = list(rate_subcatch_dict.values())
 
-rate_arr = []
-
-# for key in rate_subcatch.keys():
-#     for i in range(rate_subcatch.get(key)):
-#         rate_arr.append(key)
-rate_arr = list(range(12))
 
 class Chromosome:
 
@@ -123,33 +117,16 @@ class Chromosome:
         self._genes = genes
         self._num_cluster = 0
         self._score = 100
-
-    def first_generation(self):
-        self._num_subcatch_dict = {
-            "공동주택": 0,
-            "주상복합": 0,
-            "근린생활시설": 0,
-            "상업시설": 0,
-            "유보형복합용지": 0,
-            "자족복합용지": 0,
-            "자족시설": 0,
-            "업무시설": 0,
-            "공원": 0,
-            "녹지": 0,
-            "공공공지": 0,
-            "보행자전용도로": 0
-        }
-
         self._num_subcatch = [0] * 12
 
+    def first_generation(self):
         for i in range(111):
             for j in range(71):
                 self._count = 0
                 self.make_first_gene(i, j, -1)
+        print(self._num_cluster)
 
     def make_first_gene(self, x, y, parent_tag):
-        global max_subcatch, rate_arr, imperv, map_direction, whole_map
-
         if map_direction[x][y] == "":
             return
 
@@ -157,18 +134,13 @@ class Chromosome:
             return
 
         if self._count % 8 == 0: # 여기에 있는 숫자 8을 바꾸면 처음 만들 때 묶음 수를 바꿀 수 있음. 커질수록 클러스터 단위가 커짐.
-            tmp_tag = random.choice(rate_arr)
-
-            while max_subcatch[tmp_tag] < self._num_subcatch[tmp_tag]:
-                tmp_tag = random.choice(rate_arr)
+            tmp_tag = random.choice([i for i in range(12) if max_subcatch[i] >= self._num_subcatch[i]])
 
             if tmp_tag != parent_tag:
                 parent_tag = -1
                 self._count = 0
-
-        if parent_tag == -1 and self._count == 0:
-            self._num_cluster = self._num_cluster + 1
-            parent_tag = tmp_tag
+                self._num_cluster = self._num_cluster + 1
+                parent_tag = tmp_tag
 
         self._count = self._count + 1
         self._genes[x][y] = parent_tag
