@@ -1,0 +1,6 @@
+*.pdf
+*.hwp
+Arcgis/
+Excel/
+PCSWMM/
+ga.py
