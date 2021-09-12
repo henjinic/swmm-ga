@@ -171,9 +171,11 @@ class Chromosome:
             for j in range(71):
                 first_genes[i][j] = second._genes[i][j]
                 second_genes[i][j] = self._genes[i][j]
+
         child1 = Chromosome(first_genes)
         child2 = Chromosome(second_genes)
         random.random()
+
         return child1, child2
 
     def crossover2(self, second):
@@ -184,35 +186,31 @@ class Chromosome:
             for j in range(36):
                 first_genes[i][j] = second._genes[i][j]
                 second_genes[i][j] = self._genes[i][j]
+
         child1 = Chromosome(first_genes)
         child2 = Chromosome(second_genes)
+
         return child1, child2
 
     def mutate(self, length, mutation_rate):
         if random.random() > mutation_rate:
             return
+
         x1 = random.randint(0, 110 - length)
         y1 = random.randint(0, 70 - length)
         x2 = random.randint(0, 110 - length)
         y2 = random.randint(0, 70 - length)
 
-        tmp1 = []
-        tmp2 = []
-        for i in range(length):
-            tmp1_1 = []
-            tmp2_1 = []
-            for j in range(length):
-                tmp1_1.append(self._genes[x1+i][y1+j])
-                tmp2_1.append(self._genes[x2+i][y2+j])
-            tmp1.append(tmp1_1)
-            tmp2.append(tmp2_1)
+        tmp1 = [self._genes[x1 + i][y1:y1 + length] for i in range(length)]
+        tmp2 = [self._genes[x2 + i][y2:y2 + length] for i in range(length)]
 
         for i in range(length):
             for j in range(length):
-                if self._genes[x1+i][y1+j] != -1 and tmp2[i][j] != -1:
-                    self._genes[x1+i][y1+j] = tmp2[i][j]
-                if self._genes[x2+i][y2+j] != -1 and tmp1[i][j] != -1:
-                    self._genes[x2+i][y2+j] = tmp1[i][j]
+                if self._genes[x1 + i][y1 + j] != -1 and tmp2[i][j] != -1:
+                    self._genes[x1 + i][y1 + j] = tmp2[i][j]
+
+                if self._genes[x2 + i][y2 + j] != -1 and tmp1[i][j] != -1:
+                    self._genes[x2 + i][y2 + j] = tmp1[i][j]
 
     def cluster(self):
         self._cluster_array = create_grid(111, 71, -1)
@@ -261,14 +259,15 @@ class Chromosome:
 
     def rate_fitness(self, x):
         self.update_tag_areas()
-        result = True
 
-        for area, max_area in zip(self._tag_areas, max_subcatch):
-            if max_area * (1 - x) > area or max_area * (1 + x) < area:
-                result = False
-                break
+        upper_bounds = [area * (1 + x) for area in max_subcatch]
+        lower_bounds = [area * (1 - x) for area in max_subcatch]
 
-        return result
+        is_in_ranges = [lower <= area <= upper for upper, area, lower in zip(upper_bounds, self._tag_areas, lower_bounds)]
+
+        print("out of ranges", is_in_ranges.count(False))
+
+        return all(is_in_ranges)
 
     def update_score(self):
         # global imperv, greenroof, pavement
@@ -357,7 +356,7 @@ class GeneticAlgorithm:
                 # 450개 보다 작은 것만 통과시키게 만든거라, 작아질 수록 전체 클러스터 수가 적은 자식만 도출됨.
                 # 대신 너무 작으면 자식이 잘 나오지 않음.
                 for child in children:
-                    if child.cluster() < 500 and child.rate_fitness(0.15):
+                    if child.rate_fitness(0.15) and child.cluster() < 500:
                         child.update_score()
                         next_chromosome_arr.append(child)
                         count = count + 1
