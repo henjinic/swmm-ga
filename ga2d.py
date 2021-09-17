@@ -171,22 +171,21 @@ class GeneGenerator:
     def generate(self):
         result = Grid(self._height, self._width)
 
-        while True:
-            target_coords = result.get_coords(lambda x: not result[x] and self._target_mask[x])
+        target_coords = result.get_coords(lambda x: self._target_mask[x])
 
+        while True:
             if not target_coords:
                 break
 
-            r, c = choices(target_coords)
+            r, c = randpop(target_coords)
 
             weights = [self._get_weight_at(result, r, c, code) for code in self._codes]
-
             code = choices(self._codes, weights)
-            result = self._fill_cluster(result, r, c, code)
+            result, target_coords = self._fill_cluster(result, target_coords, r, c, code)
 
         return result
 
-    def _fill_cluster(self, grid, r, c, code):
+    def _fill_cluster(self, grid, target_coords, r, c, code):
         grid[r, c] = code
         current_cluster_size = 1
 
@@ -203,10 +202,11 @@ class GeneGenerator:
                 break
 
             r, c = randpop(neighbor_coords, neighbor_weights)
+            target_coords.remove((r, c))
             grid[r, c] = code
             current_cluster_size += 1
 
-        return grid
+        return grid, target_coords
 
     def _get_weight_at(self, grid, r, c, code):
         weight = self._cluster_cohesion ** grid.count_neighbor(r, c, [code])
@@ -224,14 +224,14 @@ class GeneGenerator:
 
 def main():
     mask = [[1 if c > 4 and r < 105 else 0 for c in range(71)] for r in range(111)]
-    submask1 = [[1 if r < 40 else 0 for c in range(71)] for r in range(111)]
-    submask2 = [[1 if c > 30 else 0 for c in range(71)] for r in range(111)]
-    magnet1 = [[1 if 55 < c < 60 else 0 for c in range(71)] for r in range(111)]
+    submask1 = [[1 if r < 40 else 0 for _ in range(71)] for r in range(111)]
+    submask2 = [[1 if c > 40 else 0 for c in range(71)] for _ in range(111)]
+    magnet1 = [[1 if 55 < c < 60 else 0 for c in range(71)] for _ in range(111)]
     magnet2 = [[1 if 20 < c < 30 and 40 < r < 50 else 0 for c in range(71)] for r in range(111)]
 
     generator = GeneGenerator(111, 71, list(range(1, 8)))
     generator.add_mask(mask)
-    generator.add_cluster_rule(50, 4)
+    generator.add_cluster_rule(20, 4)
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)

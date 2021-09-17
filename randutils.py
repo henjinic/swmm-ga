@@ -8,7 +8,7 @@ def choices(sequence, weights=None):
 
 def randpop(sequence, weights=None):
     if weights is None:
-        weights = [1] * len(sequence)
+        return sequence.pop(random.randrange(len(sequence)))
     return sequence.pop(_choices_index(weights))
 
 def _choices_index(weights):
