@@ -149,6 +149,8 @@ class GeneGenerator:
         self._magnets = {}
         self._magnet_magnitudes = {}
         self._repulsions = defaultdict(list)
+        self._area_map = Grid(height, width, value=1)
+        self._max_areas = {}
 
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
@@ -161,6 +163,12 @@ class GeneGenerator:
         self._repulsions[code1].append(code2)
         self._repulsions[code2].append(code1)
 
+    def change_area_map(self, area_map):
+        self._area_map = Grid(area_map)
+
+    def add_area_rule(self, code, max_area):
+        self._max_areas[code] = max_area
+
     def add_submask(self, code, submask):
         self._submasks[code] = Grid(submask)
 
@@ -172,6 +180,7 @@ class GeneGenerator:
         result = Grid(self._height, self._width)
 
         target_coords = result.get_coords(lambda x: self._target_mask[x])
+        accumulated_areas = defaultdict(int)
 
         while True:
             if not target_coords:
@@ -179,14 +188,15 @@ class GeneGenerator:
 
             r, c = randpop(target_coords)
 
-            weights = [self._get_weight_at(result, r, c, code) for code in self._codes]
+            weights = [self._get_weight_at(result, r, c, code, accumulated_areas) for code in self._codes]
             code = choices(self._codes, weights)
-            result, target_coords = self._fill_cluster(result, target_coords, r, c, code)
-
+            result, target_coords, accumulated_areas = self._fill_cluster(result, target_coords, accumulated_areas, r, c, code)
+        print(accumulated_areas)
         return result
 
-    def _fill_cluster(self, grid, target_coords, r, c, code):
+    def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code):
         grid[r, c] = code
+        accumulated_areas[code] += self._area_map[r, c]
         current_cluster_size = 1
 
         neighbor_coords = []
@@ -196,7 +206,7 @@ class GeneGenerator:
             if not neighbor_coords:
                 break
 
-            neighbor_weights = [self._get_weight_at(grid, r, c, code) for r, c in neighbor_coords]
+            neighbor_weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for r, c in neighbor_coords]
 
             if not sum(neighbor_weights):
                 break
@@ -204,11 +214,12 @@ class GeneGenerator:
             r, c = randpop(neighbor_coords, neighbor_weights)
             target_coords.remove((r, c))
             grid[r, c] = code
+            accumulated_areas[code] += self._area_map[r, c]
             current_cluster_size += 1
 
-        return grid, target_coords
+        return grid, target_coords, accumulated_areas
 
-    def _get_weight_at(self, grid, r, c, code):
+    def _get_weight_at(self, grid, r, c, code, accumulated_areas):
         weight = self._cluster_cohesion ** grid.count_neighbor(r, c, [code])
 
         if code in self._submasks:
@@ -220,7 +231,11 @@ class GeneGenerator:
         if code in self._repulsions:
             weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code]) else 1
 
+        if code in self._max_areas:
+            weight *= (self._max_areas[code] - accumulated_areas[code]) / self._max_areas[code]
+
         return weight
+
 
 def main():
     mask = [[1 if c > 4 and r < 105 else 0 for c in range(71)] for r in range(111)]
@@ -230,8 +245,17 @@ def main():
     magnet2 = [[1 if 20 < c < 30 and 40 < r < 50 else 0 for c in range(71)] for r in range(111)]
 
     generator = GeneGenerator(111, 71, list(range(1, 8)))
+
     generator.add_mask(mask)
-    generator.add_cluster_rule(20, 4)
+    generator.add_cluster_rule(50, 4)
+
+    generator.add_area_rule(1, 1000)
+    generator.add_area_rule(2, 500)
+    generator.add_area_rule(3, 1000)
+    generator.add_area_rule(4, 1250)
+    generator.add_area_rule(5, 250)
+    generator.add_area_rule(6, 1500)
+    generator.add_area_rule(7, 1500)
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)
@@ -242,22 +266,22 @@ def main():
 
     generator.add_repulsion_rule(7, 6)
 
-    grid = generator.generate()
-    print(grid.count_cluster())
-    plot(grid._raw_grid)
 
 
-    # grid1 = generator.generate()
-    # grid2 = generator.generate()
-
-    # parent1 = Chromosome(grid1._raw_grid)
-    # parent2 = Chromosome(grid2._raw_grid)
-    # child1, child2 = parent1.crossover(parent2)
-
-    # print(*[Grid(x.genes).count_cluster() for x in [parent1, parent2, child1, child2]])
-    # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
+    # grid = generator.generate()
+    # print(grid.count_cluster())
+    # plot(grid._raw_grid)
 
 
+    grid1 = generator.generate()
+    grid2 = generator.generate()
+
+    parent1 = Chromosome(grid1._raw_grid)
+    parent2 = Chromosome(grid2._raw_grid)
+    child1, child2 = parent1.crossover(parent2)
+
+    print(*[Grid(x.genes).count_cluster() for x in [parent1, parent2, child1, child2]])
+    plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
 
 if __name__ == "__main__":
     main()
