@@ -60,8 +60,8 @@ class Grid:
             self[r, c] = 0
             target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code and x not in target_coords)
 
-    def count_neighbor(self, r, c, value):
-        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] == value))
+    def count_neighbor(self, r, c, targets):
+        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
 
     def traverse_neighbor(self, r, c, action, filter=lambda: True):
         target_coords = [(r + dr, c + dc) for dr, dc in [(-1, 0), (0, -1), (0, 1), (1, 0)]]
@@ -81,7 +81,7 @@ def plot(*args):
         fig, axs = plt.subplots(1, len(args))
 
         for ax, grid in zip(axs, args):
-            img = ax.imshow(grid)
+            img = ax.imshow(grid, cmap="gist_ncar")
             fig.colorbar(img, ax=ax, aspect=50)
 
     plt.show()
@@ -125,7 +125,7 @@ class Chromosome:
                     continue
 
                 if genes1[r][c] != genes2[r][c]:
-                    result[frozenset([genes1[r][c], genes2[r][c]])].append((r, c))
+                    result[frozenset((genes1[r][c], genes2[r][c]))].append((r, c))
 
         return result
 
@@ -148,6 +148,7 @@ class GeneGenerator:
         self._submasks = {}
         self._magnets = {}
         self._magnet_magnitudes = {}
+        self._repulsions = defaultdict(list)
 
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
@@ -155,6 +156,10 @@ class GeneGenerator:
     def add_cluster_rule(self, cluster_size, cluster_cohesion):
         self._cluster_size = cluster_size
         self._cluster_cohesion = cluster_cohesion
+
+    def add_repulsion_rule(self, code1, code2):
+        self._repulsions[code1].append(code2)
+        self._repulsions[code2].append(code1)
 
     def add_submask(self, code, submask):
         self._submasks[code] = Grid(submask)
@@ -194,6 +199,9 @@ class GeneGenerator:
 
             neighbor_weights = [self._get_weight_at(grid, r, c, code) for r, c in neighbor_coords]
 
+            if not sum(neighbor_weights):
+                break
+
             r, c = randpop(neighbor_coords, neighbor_weights)
             grid[r, c] = code
             current_cluster_size += 1
@@ -201,53 +209,54 @@ class GeneGenerator:
         return grid
 
     def _get_weight_at(self, grid, r, c, code):
-        weight = self._cluster_cohesion ** grid.count_neighbor(r, c, code)
+        weight = self._cluster_cohesion ** grid.count_neighbor(r, c, [code])
 
         if code in self._submasks:
             weight *= self._submasks[code][r, c]
 
         if code in self._magnets:
-            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, 1)
+            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1])
+
+        if code in self._repulsions:
+            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code]) else 1
 
         return weight
 
-
 def main():
-
-    # parent1 = Chromosome([
-    #     [0, 1, 3, 2],
-    #     [3, 1, 2, 1],
-    #     [2, 3, 2, 2],
-    #     [2, 3, 1, 0]
-    # ])
-    # parent2 = Chromosome([
-    #     [0, 2, 2, 3],
-    #     [1, 2, 2, 3],
-    #     [1, 1, 3, 3],
-    #     [3, 3, 3, 0]
-    # ])
-    # child1, child2 = parent1.crossover(parent2)
-
     mask = [[1 if c > 4 and r < 105 else 0 for c in range(71)] for r in range(111)]
     submask1 = [[1 if r < 40 else 0 for c in range(71)] for r in range(111)]
     submask2 = [[1 if c > 30 else 0 for c in range(71)] for r in range(111)]
     magnet1 = [[1 if 55 < c < 60 else 0 for c in range(71)] for r in range(111)]
     magnet2 = [[1 if 20 < c < 30 and 40 < r < 50 else 0 for c in range(71)] for r in range(111)]
 
-    generator = GeneGenerator(111, 71, list(range(1, 10)))
+    generator = GeneGenerator(111, 71, list(range(1, 8)))
     generator.add_mask(mask)
-    generator.add_cluster_rule(20, 3)
+    generator.add_cluster_rule(50, 4)
 
     generator.add_submask(1, submask1)
-    generator.add_submask(5, submask2)
+    generator.add_submask(4, submask2)
 
     generator.add_magnet(2, magnet1, 4)
-    generator.add_magnet(7, magnet1, 4)
-    generator.add_magnet(4, magnet2, 4)
+    generator.add_magnet(3, magnet1, 4)
+    generator.add_magnet(5, magnet2, 4)
+
+    generator.add_repulsion_rule(7, 6)
 
     grid = generator.generate()
     print(grid.count_cluster())
     plot(grid._raw_grid)
+
+
+    # grid1 = generator.generate()
+    # grid2 = generator.generate()
+
+    # parent1 = Chromosome(grid1._raw_grid)
+    # parent2 = Chromosome(grid2._raw_grid)
+    # child1, child2 = parent1.crossover(parent2)
+
+    # print(*[Grid(x.genes).count_cluster() for x in [parent1, parent2, child1, child2]])
+    # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
+
 
 
 if __name__ == "__main__":
