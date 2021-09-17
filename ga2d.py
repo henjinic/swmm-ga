@@ -30,43 +30,37 @@ class Grid:
     def width(self):
         return len(self._raw_grid[0])
 
-    def count_cluster(self):
-        result = 0
-        check_grid = deepcopy(self._raw_grid)
-
-        for r in range(self.height):
-            for c in range(self.width):
-                if check_grid[r][c] == 0:
-                    continue
-
-                result += 1
-                check_grid = self._fill_zeros_in_cluster(check_grid, r, c)
-
-        return result
+    def copy(self):
+        return Grid(deepcopy(self._raw_grid))
 
     def get_coords(self, filter):
         return {(r, c) for r in range(self.height)
                        for c in range(self.width)
                        if filter(self[r, c])}
 
-    def _fill_zeros_in_cluster(self, grid, r, c):
-        target_code = grid[r][c]
+    def count_cluster(self):
+        result = 0
+        check_grid = self.copy()
+
+        for r in range(self.height):
+            for c in range(self.width):
+                if check_grid[r, c] == 0:
+                    continue
+
+                result += 1
+                check_grid._fill_zeros_in_cluster(r, c)
+
+        return result
+
+    def _fill_zeros_in_cluster(self, r, c):
+        target_code = self[r, c]
         target_coords = [(r, c)]
 
         while target_coords:
             r, c = target_coords.pop(0)
-            grid[r][c] = 0
+            self[r, c] = 0
 
-            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                if r + dr >= len(grid) or c + dc >= len(grid[0]) or r + dr < 0 or c + dc < 0:
-                    continue
-
-                if grid[r + dr][c + dc] != target_code:
-                    continue
-
-                target_coords.append((r + dr, c + dc))
-
-        return grid
+            target_coords += self._traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code)
 
     def _traverse_neighbor(self, r, c, action, filter):
         result = []
@@ -75,10 +69,10 @@ class Grid:
             if r + dr >= self.height or c + dc >= self.width or r + dr < 0 or c + dc < 0:
                 continue
 
-            if not filter(r + dr, c + dc):
+            if not filter((r + dr, c + dc)):
                 continue
 
-            result.append(action(r + dr, c + dc))
+            result.append(action((r + dr, c + dc)))
 
         return result
 
