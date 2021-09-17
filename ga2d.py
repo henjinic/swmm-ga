@@ -60,9 +60,9 @@ class Grid:
             r, c = target_coords.pop(0)
             self[r, c] = 0
 
-            target_coords += self._traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code)
+            target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code)
 
-    def _traverse_neighbor(self, r, c, action, filter):
+    def traverse_neighbor(self, r, c, action, filter):
         result = []
 
         for dr, dc in [(-1, 0), (0, -1), (0, 1), (1, 0)]:
@@ -180,12 +180,7 @@ class GeneGenerator:
 
         neighbor_coords = []
         while current_cluster_size < self._cluster_size:
-            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-                if r + dr >= self._height or c + dc >= self._width or r + dr < 0 or c + dc < 0:
-                    continue
-
-                if grid[r + dr, c + dc] == 0 and self._target_mask[r + dr, c + dc] == 1 and (r + dr, c + dc) not in neighbor_coords:
-                    neighbor_coords.append((r + dr, c + dc))
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x] and self._target_mask[x] and x not in neighbor_coords)
 
             if not neighbor_coords:
                 break
@@ -196,9 +191,6 @@ class GeneGenerator:
             current_cluster_size += 1
 
         return grid
-
-    def _create_empty_grid(self):
-        return [[0] * self._width for _ in range(self._height)]
 
 def main():
 
