@@ -174,12 +174,9 @@ class GeneGenerator:
 
             clustering_weights = [self._cluster_cohesion ** result.count_neighbor(r, c, code) for code in self._codes]
             submask_weights = [self._submasks[code][r, c] if code in self._submasks else 1 for code in self._codes]
+            magnet_weights = [10 ** self._magnets[code].count_neighbor(r, c, 1) if code in self._magnets else 1 for code in self._codes]
 
-            weights = [math.prod(ws) for ws in zip(clustering_weights, submask_weights)]
-
-            # for i, code in enumerate(self._codes):
-            #     if code in self._sub_masks:
-            #         weights[i] *= self._sub_masks[code][r, c]
+            weights = [math.prod(ws) for ws in zip(clustering_weights, submask_weights, magnet_weights)]
 
             code = choices(self._codes, weights)
             result = self._fill_cluster(result, r, c, code)
@@ -222,14 +219,20 @@ def main():
 
     mask = [[1 if c > 4 and r < 105 else 0 for c in range(71)] for r in range(111)]
     submask1 = [[1 if r < 40 else 0 for c in range(71)] for r in range(111)]
-    submask5 = [[1 if c > 30 else 0 for c in range(71)] for r in range(111)]
+    submask2 = [[1 if c > 30 else 0 for c in range(71)] for r in range(111)]
+    magnet1 = [[1 if 55 < c < 60 else 0 for c in range(71)] for r in range(111)]
+    magnet2 = [[1 if 20 < c < 30 and 40 < r < 50 else 0 for c in range(71)] for r in range(111)]
 
     generator = GeneGenerator(111, 71, list(range(1, 10)))
-
     generator.add_mask(mask)
-    generator.add_cluster_rule(30, 3)
+    generator.add_cluster_rule(20, 3)
+
     generator.add_submask(1, submask1)
-    generator.add_submask(5, submask5)
+    generator.add_submask(5, submask2)
+
+    generator.add_magnet(2, magnet1)
+    generator.add_magnet(7, magnet1)
+    generator.add_magnet(4, magnet2)
 
     grid = generator.generate()
     print(grid.count_cluster())
