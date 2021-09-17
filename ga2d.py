@@ -1,3 +1,4 @@
+import math
 import random
 from collections import defaultdict
 from copy import deepcopy
@@ -144,6 +145,8 @@ class GeneGenerator:
         self._target_mask = Grid(height, width, value=1)
         self._cluster_size = 1
         self._cluster_cohesion = 1
+        self._submasks = {}
+        self._magnets = {}
 
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
@@ -151,6 +154,12 @@ class GeneGenerator:
     def add_cluster_rule(self, cluster_size, cluster_cohesion):
         self._cluster_size = cluster_size
         self._cluster_cohesion = cluster_cohesion
+
+    def add_submask(self, code, submask):
+        self._submasks[code] = Grid(submask)
+
+    def add_magnet(self, code, magnet):
+        self._magnets[code] = Grid(magnet)
 
     def generate(self):
         result = Grid(self._height, self._width)
@@ -163,11 +172,14 @@ class GeneGenerator:
 
             r, c = choices(target_coords)
 
-            # weights = []
-            # for code in self._codes:
-            #     weights.append(self._cluster_cohesion ** result.count_neighbor(r, c, code))
+            clustering_weights = [self._cluster_cohesion ** result.count_neighbor(r, c, code) for code in self._codes]
+            submask_weights = [self._submasks[code][r, c] if code in self._submasks else 1 for code in self._codes]
 
-            weights = [self._cluster_cohesion ** result.count_neighbor(r, c, code) for code in self._codes]
+            weights = [math.prod(ws) for ws in zip(clustering_weights, submask_weights)]
+
+            # for i, code in enumerate(self._codes):
+            #     if code in self._sub_masks:
+            #         weights[i] *= self._sub_masks[code][r, c]
 
             code = choices(self._codes, weights)
             result = self._fill_cluster(result, r, c, code)
@@ -184,7 +196,8 @@ class GeneGenerator:
             if not neighbor_coords:
                 break
 
-            neighbor_weights = [1] * len(neighbor_coords)
+            neighbor_weights = [self._cluster_cohesion ** grid.count_neighbor(r, c, code) for r, c in neighbor_coords]
+
             r, c = randpop(neighbor_coords, neighbor_weights)
             grid[r, c] = code
             current_cluster_size += 1
@@ -206,26 +219,19 @@ def main():
     #     [3, 3, 3, 0]
     # ])
     # child1, child2 = parent1.crossover(parent2)
-    generator = GeneGenerator(111, 71, list(range(1, 10)))
-    # generator.add_mask([
-    #         [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-    #         [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    #         [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
-    # ])
 
-    generator.add_cluster_rule(30, 4)
+    mask = [[1 if c > 4 and r < 105 else 0 for c in range(71)] for r in range(111)]
+    submask1 = [[1 if r < 40 else 0 for c in range(71)] for r in range(111)]
+    submask5 = [[1 if c > 30 else 0 for c in range(71)] for r in range(111)]
+
+    generator = GeneGenerator(111, 71, list(range(1, 10)))
+
+    generator.add_mask(mask)
+    generator.add_cluster_rule(30, 3)
+    generator.add_submask(1, submask1)
+    generator.add_submask(5, submask5)
 
     grid = generator.generate()
-
     print(grid.count_cluster())
     plot(grid._raw_grid)
 
