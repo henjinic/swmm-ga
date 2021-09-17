@@ -1,7 +1,7 @@
-from galu import create_map
 import random
 from collections import defaultdict
 from copy import deepcopy
+from randutils import choices, randpop
 
 def plot(*args):
     import matplotlib.pyplot as plt
@@ -51,25 +51,6 @@ def fill_zero_cluster(grid, r, c):
             target_coords.append((r + dr, c + dc))
 
     return grid
-
-def choices_index(weights):
-    normalized_weights = [weight / sum(weights) for weight in weights]
-    accumulated_weights = [sum(normalized_weights[:i + 1]) for i in range(len(weights))]
-
-    offset = random.random()
-    for i, weight in enumerate(accumulated_weights):
-        if offset <= weight:
-            return i
-
-def choices(sequence, weights=None):
-    if weights is None:
-        weights = [1] * len(sequence)
-    return sequence[choices_index(weights)]
-
-def randpop(sequence, weights=None):
-    if weights is None:
-        weights = [1] * len(sequence)
-    return sequence.pop(choices_index(weights))
 
 class Chromosome:
 
