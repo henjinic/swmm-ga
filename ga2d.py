@@ -147,6 +147,7 @@ class GeneGenerator:
         self._cluster_cohesion = 1
         self._submasks = {}
         self._magnets = {}
+        self._magnet_magnitudes = {}
 
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
@@ -158,8 +159,9 @@ class GeneGenerator:
     def add_submask(self, code, submask):
         self._submasks[code] = Grid(submask)
 
-    def add_magnet(self, code, magnet):
+    def add_magnet(self, code, magnet, magnitude):
         self._magnets[code] = Grid(magnet)
+        self._magnet_magnitudes[code] = magnitude
 
     def generate(self):
         result = Grid(self._height, self._width)
@@ -172,14 +174,11 @@ class GeneGenerator:
 
             r, c = choices(target_coords)
 
-            clustering_weights = [self._cluster_cohesion ** result.count_neighbor(r, c, code) for code in self._codes]
-            submask_weights = [self._submasks[code][r, c] if code in self._submasks else 1 for code in self._codes]
-            magnet_weights = [10 ** self._magnets[code].count_neighbor(r, c, 1) if code in self._magnets else 1 for code in self._codes]
-
-            weights = [math.prod(ws) for ws in zip(clustering_weights, submask_weights, magnet_weights)]
+            weights = [self._get_weight_at(result, r, c, code) for code in self._codes]
 
             code = choices(self._codes, weights)
             result = self._fill_cluster(result, r, c, code)
+
         return result
 
     def _fill_cluster(self, grid, r, c, code):
@@ -193,13 +192,25 @@ class GeneGenerator:
             if not neighbor_coords:
                 break
 
-            neighbor_weights = [self._cluster_cohesion ** grid.count_neighbor(r, c, code) for r, c in neighbor_coords]
+            neighbor_weights = [self._get_weight_at(grid, r, c, code) for r, c in neighbor_coords]
 
             r, c = randpop(neighbor_coords, neighbor_weights)
             grid[r, c] = code
             current_cluster_size += 1
 
         return grid
+
+    def _get_weight_at(self, grid, r, c, code):
+        weight = self._cluster_cohesion ** grid.count_neighbor(r, c, code)
+
+        if code in self._submasks:
+            weight *= self._submasks[code][r, c]
+
+        if code in self._magnets:
+            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, 1)
+
+        return weight
+
 
 def main():
 
@@ -230,9 +241,9 @@ def main():
     generator.add_submask(1, submask1)
     generator.add_submask(5, submask2)
 
-    generator.add_magnet(2, magnet1)
-    generator.add_magnet(7, magnet1)
-    generator.add_magnet(4, magnet2)
+    generator.add_magnet(2, magnet1, 4)
+    generator.add_magnet(7, magnet1, 4)
+    generator.add_magnet(4, magnet2, 4)
 
     grid = generator.generate()
     print(grid.count_cluster())
