@@ -74,7 +74,7 @@ def plot(*args):
 
     if len(args) == 1:
         fig, ax = plt.subplots()
-        img = ax.imshow(args[0])
+        img = ax.imshow(args[0], cmap="gist_ncar")
         fig.colorbar(img, ax=ax, aspect=50)
     else:
         fig, axs = plt.subplots(1, len(args))
@@ -163,9 +163,11 @@ class GeneGenerator:
 
             r, c = choices(target_coords)
 
-            weights = []
-            for code in self._codes:
-                weights.append(self._cluster_cohesion ** result.count_neighbor(r, c, code))
+            # weights = []
+            # for code in self._codes:
+            #     weights.append(self._cluster_cohesion ** result.count_neighbor(r, c, code))
+
+            weights = [self._cluster_cohesion ** result.count_neighbor(r, c, code) for code in self._codes]
 
             code = choices(self._codes, weights)
             result = self._fill_cluster(result, r, c, code)
@@ -204,7 +206,7 @@ def main():
     #     [3, 3, 3, 0]
     # ])
     # child1, child2 = parent1.crossover(parent2)
-    generator = GeneGenerator(100, 100, list(range(1, 10)))
+    generator = GeneGenerator(111, 71, list(range(1, 10)))
     # generator.add_mask([
     #         [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
     #         [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
@@ -219,12 +221,13 @@ def main():
     #         [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
     #         [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
     # ])
+
     generator.add_cluster_rule(30, 4)
 
     grid = generator.generate()
 
     print(grid.count_cluster())
-    # plot(grid._raw_grid)
+    plot(grid._raw_grid)
 
 
 if __name__ == "__main__":
