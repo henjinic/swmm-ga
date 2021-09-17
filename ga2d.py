@@ -6,7 +6,7 @@ from randutils import choices, randpop
 
 class Grid:
 
-    def __init__(self, *args):
+    def __init__(self, *args, value=0):
         """
         `__init__(raw_data)`\n
         `__init__(height, width)`\n
@@ -14,7 +14,7 @@ class Grid:
         if len(args) == 1:
             self._raw_grid = args[0]
         else:
-            self._raw_grid = [[0] * args[1] for _ in range(args[0])]
+            self._raw_grid = [[value] * args[1] for _ in range(args[0])]
 
     def __getitem__(self, coord):
         return self._raw_grid[coord[0]][coord[1]]
@@ -34,9 +34,7 @@ class Grid:
         return Grid(deepcopy(self._raw_grid))
 
     def get_coords(self, filter):
-        return {(r, c) for r in range(self.height)
-                       for c in range(self.width)
-                       if filter(self[r, c])}
+        return [(r, c) for r in range(self.height) for c in range(self.width) if filter((r, c))]
 
     def count_cluster(self):
         result = 0
@@ -59,22 +57,16 @@ class Grid:
         while target_coords:
             r, c = target_coords.pop(0)
             self[r, c] = 0
+            target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code and x not in target_coords)
 
-            target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code)
+    def count_neighbor(self, r, c, value):
+        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] == value))
 
-    def traverse_neighbor(self, r, c, action, filter):
-        result = []
+    def traverse_neighbor(self, r, c, action, filter=lambda: True):
+        target_coords = [(r + dr, c + dc) for dr, dc in [(-1, 0), (0, -1), (0, 1), (1, 0)]]
+        valid_coords = [(r, c) for r, c in target_coords if 0 <= r < self.height and 0 <= c < self.width]
 
-        for dr, dc in [(-1, 0), (0, -1), (0, 1), (1, 0)]:
-            if r + dr >= self.height or c + dc >= self.width or r + dr < 0 or c + dc < 0:
-                continue
-
-            if not filter((r + dr, c + dc)):
-                continue
-
-            result.append(action((r + dr, c + dc)))
-
-        return result
+        return [action((r, c)) for r, c in valid_coords if filter((r, c))]
 
 
 def plot(*args):
@@ -145,33 +137,38 @@ class Chromosome:
 
 class GeneGenerator:
 
-    def __init__(self, codes, target_mask, cluster_size=10):
+    def __init__(self, height, width, codes):
+        self._height = height
+        self._width = width
         self._codes = codes
-        self._target_mask = Grid(target_mask)
+        self._target_mask = Grid(height, width, value=1)
+        self._cluster_size = 1
+        self._cluster_cohesion = 1
+
+    def add_mask(self, mask):
+        self._target_mask = Grid(mask)
+
+    def add_cluster_rule(self, cluster_size, cluster_cohesion):
         self._cluster_size = cluster_size
-
-    @property
-    def _width(self):
-        return self._target_mask.width
-
-    @property
-    def _height(self):
-        return self._target_mask.height
+        self._cluster_cohesion = cluster_cohesion
 
     def generate(self):
-        result = Grid(self._target_mask.height, self._target_mask.width)
+        result = Grid(self._height, self._width)
 
         while True:
-            target_coords = list(result.get_coords(lambda x: not x) & self._target_mask.get_coords(lambda x: x))
+            target_coords = result.get_coords(lambda x: not result[x] and self._target_mask[x])
 
             if not target_coords:
                 break
 
             r, c = choices(target_coords)
-            weight = [1, 1, 1, 1]
-            code = choices(self._codes, weight)
-            result = self._fill_cluster(result, r, c, code)
 
+            weights = []
+            for code in self._codes:
+                weights.append(self._cluster_cohesion ** result.count_neighbor(r, c, code))
+
+            code = choices(self._codes, weights)
+            result = self._fill_cluster(result, r, c, code)
         return result
 
     def _fill_cluster(self, grid, r, c, code):
@@ -207,28 +204,27 @@ def main():
     #     [3, 3, 3, 0]
     # ])
     # child1, child2 = parent1.crossover(parent2)
+    generator = GeneGenerator(100, 100, list(range(1, 10)))
+    # generator.add_mask([
+    #         [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+    #         [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+    #         [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
+    # ])
+    generator.add_cluster_rule(30, 4)
 
-
-    generator = GeneGenerator(
-        codes=[1, 2, 3, 4],
-        target_mask=[
-            [0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
-            [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
-        ]
-    )
     grid = generator.generate()
+
     print(grid.count_cluster())
-    plot(grid._raw_grid)
+    # plot(grid._raw_grid)
 
 
 if __name__ == "__main__":
