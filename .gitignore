@@ -1,6 +1,6 @@
-*.pdf
-*.hwp
+__pycache__/
 Arcgis/
+docs/
 Excel/
-PCSWMM/
-ga.py
+PCSWMM*/
+venv/

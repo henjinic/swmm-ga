@@ -14,7 +14,7 @@ def read_subcatchments():
         f.readline()
 
         for line in f:
-            key, _, _, _, area, *_ = line.strip().split(',')
+            key, _, _, _, _, _, _, area, *_ = line.strip().split(',')
             result[key] = Subcatchment(float(area))
 
     return result
@@ -35,6 +35,9 @@ for key in subcatchments.keys():
         tmp_dir = key[6:10]
         map_direction[tmp_x][tmp_y] = tmp_dir
         whole_map[tmp_x][tmp_y] = subcatchments[key]
+
+
+
 
 max_subcatch_dict = {
     "공동주택": 63.924,
@@ -111,6 +114,13 @@ max_subcatch = list(max_subcatch_dict.values())
 weights = list(rate_subcatch_dict.values())
 
 
+def choices(arr, weights):
+    weighted_arr = []
+    for elm, weight in zip(arr, weights):
+        weighted_arr += [elm] * weight
+
+    return random.choice(weighted_arr)
+
 class Chromosome:
 
     def __init__(self, genes):
@@ -124,7 +134,7 @@ class Chromosome:
             for j in range(71):
                 self._count = 0
                 self.make_first_gene(i, j, -1)
-        print(self._num_cluster)
+        # print(self._num_cluster)
 
     def make_first_gene(self, x, y, parent_tag):
         if map_direction[x][y] == "":
@@ -265,7 +275,7 @@ class Chromosome:
 
         is_in_ranges = [lower <= area <= upper for upper, area, lower in zip(upper_bounds, self._tag_areas, lower_bounds)]
 
-        print("out of ranges", is_in_ranges.count(False))
+        # print("out of ranges", is_in_ranges.count(False))
 
         return all(is_in_ranges)
 
@@ -342,7 +352,7 @@ class GeneticAlgorithm:
         count = 0
         hit = 0
         for i in range(len(self._chromosomes) - 1):
-            print(i)
+            # print(i)
             for j in range(i + 1, len(self._chromosomes)):
                 children = []
                 children.extend(self._chromosomes[i].crossover1(self._chromosomes[j]))
@@ -386,8 +396,21 @@ def save_list(path, data):
 
 
 def main():
-    ga = GeneticAlgorithm(population=20)
-    ga.run(best_case=6, generation=5, mutation_rate=0.05)
+    # ga = GeneticAlgorithm(population=20)
+    # ga.run(best_case=6, generation=5, mutation_rate=0.05)
+
+    with open("d:/galu.csv", "w", encoding="utf-8-sig") as f:
+        f.write("tag,max_area,count,imperv,greenroof,pavement\n")
+        for tag in max_subcatch_dict:
+            words = []
+            words.append(tag)
+            words.append(max_subcatch_dict[tag])
+            words.append(rate_subcatch_dict[tag])
+            words.append(imperv[tag])
+            words.append(greenroof[tag])
+            words.append(pavement[tag])
+            f.write(",".join(map(str, words)) + "\n")
+
 
 
 if __name__ == "__main__":
