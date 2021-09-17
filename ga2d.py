@@ -3,6 +3,86 @@ from collections import defaultdict
 from copy import deepcopy
 from randutils import choices, randpop
 
+
+class Grid:
+
+    def __init__(self, *args):
+        """
+        `__init__(raw_data)`\n
+        `__init__(height, width)`\n
+        """
+        if len(args) == 1:
+            self._raw_grid = args[0]
+        else:
+            self._raw_grid = [[0] * args[1] for _ in range(args[0])]
+
+    def __getitem__(self, coord):
+        return self._raw_grid[coord[0]][coord[1]]
+
+    def __setitem__(self, coord, value):
+        self._raw_grid[coord[0]][coord[1]] = value
+
+    @property
+    def height(self):
+        return len(self._raw_grid)
+
+    @property
+    def width(self):
+        return len(self._raw_grid[0])
+
+    def count_cluster(self):
+        result = 0
+        check_grid = deepcopy(self._raw_grid)
+
+        for r in range(self.height):
+            for c in range(self.width):
+                if check_grid[r][c] == 0:
+                    continue
+
+                result += 1
+                check_grid = self._fill_zeros_in_cluster(check_grid, r, c)
+
+        return result
+
+    def get_coords(self, filter):
+        return {(r, c) for r in range(self.height)
+                       for c in range(self.width)
+                       if filter(self[r, c])}
+
+    def _fill_zeros_in_cluster(self, grid, r, c):
+        target_code = grid[r][c]
+        target_coords = [(r, c)]
+
+        while target_coords:
+            r, c = target_coords.pop(0)
+            grid[r][c] = 0
+
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                if r + dr >= len(grid) or c + dc >= len(grid[0]) or r + dr < 0 or c + dc < 0:
+                    continue
+
+                if grid[r + dr][c + dc] != target_code:
+                    continue
+
+                target_coords.append((r + dr, c + dc))
+
+        return grid
+
+    def _traverse_neighbor(self, r, c, action, filter):
+        result = []
+
+        for dr, dc in [(-1, 0), (0, -1), (0, 1), (1, 0)]:
+            if r + dr >= self.height or c + dc >= self.width or r + dr < 0 or c + dc < 0:
+                continue
+
+            if not filter(r + dr, c + dc):
+                continue
+
+            result.append(action(r + dr, c + dc))
+
+        return result
+
+
 def plot(*args):
     import matplotlib.pyplot as plt
 
@@ -19,38 +99,6 @@ def plot(*args):
 
     plt.show()
 
-def count_cluster(grid):
-    result = 0
-    check_grid = deepcopy(grid)
-
-    for r in range(len(grid)):
-        for c in range(len(grid[0])):
-            if check_grid[r][c] == 0:
-                continue
-
-            result += 1
-            check_grid = fill_zero_cluster(check_grid, r, c)
-
-    return result
-
-def fill_zero_cluster(grid, r, c):
-    target_code = grid[r][c]
-    target_coords = [(r, c)]
-
-    while target_coords:
-        r, c = target_coords.pop(0)
-        grid[r][c] = 0
-
-        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
-            if r + dr >= len(grid) or c + dc >= len(grid[0]) or r + dr < 0 or c + dc < 0:
-                continue
-
-            if grid[r + dr][c + dc] != target_code:
-                continue
-
-            target_coords.append((r + dr, c + dc))
-
-    return grid
 
 class Chromosome:
 
@@ -105,22 +153,22 @@ class GeneGenerator:
 
     def __init__(self, codes, target_mask, cluster_size=10):
         self._codes = codes
-        self._target_mask = target_mask
+        self._target_mask = Grid(target_mask)
         self._cluster_size = cluster_size
 
     @property
     def _width(self):
-        return len(self._target_mask[0])
+        return self._target_mask.width
 
     @property
     def _height(self):
-        return len(self._target_mask)
+        return self._target_mask.height
 
     def generate(self):
-        result = self._create_empty_grid()
+        result = Grid(self._target_mask.height, self._target_mask.width)
 
         while True:
-            target_coords = self._list_unfilled_coords(result)
+            target_coords = list(result.get_coords(lambda x: not x) & self._target_mask.get_coords(lambda x: x))
 
             if not target_coords:
                 break
@@ -133,7 +181,7 @@ class GeneGenerator:
         return result
 
     def _fill_cluster(self, grid, r, c, code):
-        grid[r][c] = code
+        grid[r, c] = code
         current_cluster_size = 1
 
         neighbor_coords = []
@@ -142,7 +190,7 @@ class GeneGenerator:
                 if r + dr >= self._height or c + dc >= self._width or r + dr < 0 or c + dc < 0:
                     continue
 
-                if grid[r + dr][c + dc] == 0 and self._target_mask[r + dr][c + dc] == 1 and (r + dr, c + dc) not in neighbor_coords:
+                if grid[r + dr, c + dc] == 0 and self._target_mask[r + dr, c + dc] == 1 and (r + dr, c + dc) not in neighbor_coords:
                     neighbor_coords.append((r + dr, c + dc))
 
             if not neighbor_coords:
@@ -150,15 +198,10 @@ class GeneGenerator:
 
             neighbor_weights = [1] * len(neighbor_coords)
             r, c = randpop(neighbor_coords, neighbor_weights)
-            grid[r][c] = code
+            grid[r, c] = code
             current_cluster_size += 1
 
         return grid
-
-    def _list_unfilled_coords(self, grid):
-        return [(r, c) for r in range(self._height)
-                       for c in range(self._width)
-                       if self._target_mask[r][c] == 1 and grid[r][c] == 0]
 
     def _create_empty_grid(self):
         return [[0] * self._width for _ in range(self._height)]
@@ -197,9 +240,9 @@ def main():
             [0, 0, 1, 1, 1, 1, 1, 1, 1, 0],
         ]
     )
-    genes = generator.generate()
-    print(count_cluster(genes))
-    plot(genes)
+    grid = generator.generate()
+    print(grid.count_cluster())
+    plot(grid._raw_grid)
 
 
 if __name__ == "__main__":
