@@ -1,7 +1,7 @@
-import math
 import random
 from collections import defaultdict
 from copy import deepcopy
+from plotutils import plot
 from randutils import choices, randpop
 
 
@@ -68,23 +68,6 @@ class Grid:
         valid_coords = [(r, c) for r, c in target_coords if 0 <= r < self.height and 0 <= c < self.width]
 
         return [action((r, c)) for r, c in valid_coords if filter((r, c))]
-
-
-def plot(*args):
-    import matplotlib.pyplot as plt
-
-    if len(args) == 1:
-        fig, ax = plt.subplots()
-        img = ax.imshow(args[0], cmap="gist_ncar")
-        fig.colorbar(img, ax=ax, aspect=50)
-    else:
-        fig, axs = plt.subplots(1, len(args))
-
-        for ax, grid in zip(axs, args):
-            img = ax.imshow(grid, cmap="gist_ncar")
-            fig.colorbar(img, ax=ax, aspect=50)
-
-    plt.show()
 
 
 class Chromosome:
@@ -248,16 +231,7 @@ def main():
 
     generator.add_mask(mask)
     generator.add_cluster_rule(50, 4)
-
-    generator.add_area_rule([
-        1000,
-        500,
-        1000,
-        1250,
-        250,
-        1500,
-        1500,
-    ])
+    generator.add_area_rule([1000, 500, 1000, 1250, 250, 1500, 1500])
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)
