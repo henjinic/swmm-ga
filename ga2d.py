@@ -24,6 +24,10 @@ class Grid:
         self._raw_grid[coord[0]][coord[1]] = value
 
     @property
+    def raw(self):
+        return self._raw_grid
+
+    @property
     def height(self):
         return len(self._raw_grid)
 
@@ -69,6 +73,22 @@ class Grid:
 
         return [action((r, c)) for r, c in valid_coords if filter((r, c))]
 
+    def get_diff_coords(self, partner):
+        result = defaultdict(list)
+
+        for r in range(self.height):
+            for c in range(self.width):
+                if self[r, c] != partner[r, c]:
+                    result[frozenset((self[r, c], partner[r, c]))].append((r, c))
+
+        return result
+
+    def __str__(self):
+        lines = ["[" + " ".join(map(str, line)) + "]" for line in self._raw_grid]
+        aligned_lines = [" " + lines[i] if i else "[" + lines[i] for i in range(len(lines))]
+
+        return "\n".join(aligned_lines) + "]"
+
 
 class Chromosome:
 
@@ -80,43 +100,63 @@ class Chromosome:
         return self._genes
 
     def crossover(self, partner):
-        child_genes1 = deepcopy(self._genes)
-        child_genes2 = deepcopy(self._genes)
+        child_genes1 = self._genes.copy()
+        child_genes2 = self._genes.copy()
 
-        diff_coords = self._get_diff_coords(self._genes, partner._genes)
+        # diff_coords = self._get_diff_coords(self._genes, partner._genes)
+        diff_coords = self._genes.get_diff_coords(partner._genes)
 
         for (gene1, gene2), coords in diff_coords.items():
             if random.randint(0, 1):
                 coords.reverse()
 
             for r, c in coords[:len(coords) // 2]:
-                child_genes1[r][c] = gene1
-                child_genes2[r][c] = gene2
+                child_genes1[r, c] = gene1
+                child_genes2[r, c] = gene2
 
             for r, c in coords[len(coords) // 2:]:
-                child_genes1[r][c] = gene2
-                child_genes2[r][c] = gene1
+                child_genes1[r, c] = gene2
+                child_genes2[r, c] = gene1
 
         return Chromosome(child_genes1), Chromosome(child_genes2)
 
-    def _get_diff_coords(self, genes1, genes2):
-        result = defaultdict(list)
+    def evaluate(self):
+        return 1
 
-        for r in range(len(genes1)):
-            for c in range(len(genes1[0])):
-                if not genes1[r][c] or not genes2[r][c]:
-                    continue
+    def mutate(self):
+        pass
 
-                if genes1[r][c] != genes2[r][c]:
-                    result[frozenset((genes1[r][c], genes2[r][c]))].append((r, c))
+    # def _get_diff_coords(self, genes1, genes2):
+    #     result = defaultdict(list)
 
-        return result
+    #     for r in range(len(genes1)):
+    #         for c in range(len(genes1[0])):
+    #             if not genes1[r][c] or not genes2[r][c]:
+    #                 continue
 
-    def __str__(self):
-        lines = ["[" + " ".join(map(str, line)) + "]" for line in self._genes]
-        aligned_lines = [" " + lines[i] if i else "[" + lines[i] for i in range(len(lines))]
+    #             if genes1[r][c] != genes2[r][c]:
+    #                 result[frozenset((genes1[r][c], genes2[r][c]))].append((r, c))
 
-        return "\n".join(aligned_lines) + "]"
+    #     return result
+
+    # def __str__(self):
+    #     lines = ["[" + " ".join(map(str, line)) + "]" for line in self._genes]
+    #     aligned_lines = [" " + lines[i] if i else "[" + lines[i] for i in range(len(lines))]
+
+    #     return "\n".join(aligned_lines) + "]"
+
+
+class GeneticAlgorithm:
+
+    def __init__(self, gene_generator):
+        self._gene_generator = gene_generator
+
+    def run(self, size):
+        population = [Chromosome(GeneGenerator.generate()) for _ in range(size)]
+
+        population.sort()
+
+        pass
 
 
 class GeneGenerator:
@@ -160,9 +200,9 @@ class GeneGenerator:
         self._magnet_magnitudes[code] = magnitude
 
     def generate(self):
-        result = Grid(self._height, self._width)
+        grid = Grid(self._height, self._width)
 
-        target_coords = result.get_coords(lambda x: self._target_mask[x])
+        target_coords = grid.get_coords(lambda x: self._target_mask[x])
         accumulated_areas = defaultdict(int)
 
         while True:
@@ -171,11 +211,11 @@ class GeneGenerator:
 
             r, c = randpop(target_coords)
 
-            weights = [self._get_weight_at(result, r, c, code, accumulated_areas) for code in self._codes]
+            weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for code in self._codes]
             code = choices(self._codes, weights)
-            result, target_coords, accumulated_areas = self._fill_cluster(result, target_coords, accumulated_areas, r, c, code)
+            grid, target_coords, accumulated_areas = self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code)
 
-        return result
+        return grid
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code):
         grid[r, c] = code
@@ -230,32 +270,32 @@ def main():
     generator = GeneGenerator(111, 71, list(range(1, 8)))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(50, 4)
+    generator.add_cluster_rule(30, 10)
     generator.add_area_rule([1000, 500, 1000, 1250, 250, 1500, 1500])
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)
 
-    generator.add_magnet(2, magnet1, 4)
-    generator.add_magnet(3, magnet1, 4)
-    generator.add_magnet(5, magnet2, 4)
+    generator.add_magnet(2, magnet1, 10)
+    generator.add_magnet(3, magnet1, 10)
+    generator.add_magnet(5, magnet2, 10)
 
     generator.add_repulsion_rule(7, 6)
 
-    grid = generator.generate()
-    print(grid.count_cluster())
-    plot(grid._raw_grid)
+    # genes = generator.generate()
+    # print(genes.count_cluster())
+    # plot(genes)
 
 
-    # grid1 = generator.generate()
-    # grid2 = generator.generate()
+    grid1 = generator.generate()
+    grid2 = generator.generate()
 
-    # parent1 = Chromosome(grid1._raw_grid)
-    # parent2 = Chromosome(grid2._raw_grid)
-    # child1, child2 = parent1.crossover(parent2)
+    parent1 = Chromosome(grid1)
+    parent2 = Chromosome(grid2)
+    child1, child2 = parent1.crossover(parent2)
 
-    # print(*[Grid(x.genes).count_cluster() for x in [parent1, parent2, child1, child2]])
-    # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
+    print(*[x.genes.count_cluster() for x in [parent1, parent2, child1, child2]])
+    plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
 
 if __name__ == "__main__":
     main()

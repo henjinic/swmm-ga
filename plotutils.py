@@ -10,7 +10,7 @@ def plot(*args):
         fig, axs = plt.subplots(1, len(args))
 
         for ax, grid in zip(axs, args):
-            img = ax.imshow(grid, cmap="gist_ncar")
+            img = ax.imshow(grid.raw, cmap="gist_ncar")
             fig.colorbar(img, ax=ax, aspect=50)
 
     plt.show()
