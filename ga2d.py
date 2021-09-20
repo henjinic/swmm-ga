@@ -1,6 +1,7 @@
 import random
 from collections import defaultdict
 from copy import deepcopy
+from mathutils import lerp
 from operator import attrgetter
 from plotutils import plot
 from randutils import choices, randpop
@@ -42,8 +43,16 @@ class Grid:
     def get_coords(self, filter):
         return [(r, c) for r in range(self.height) for c in range(self.width) if filter((r, c))]
 
-    def count_cluster(self):
-        result = 0
+    def analyze_cluster(self):
+        """
+        ```
+        return: (
+            defaultdict {code: [size of each cluster]},
+            the number of clusters
+        )
+        ```
+        """
+        result = defaultdict(list)
         check_grid = self.copy()
 
         for r in range(self.height):
@@ -51,19 +60,24 @@ class Grid:
                 if check_grid[r, c] == 0:
                     continue
 
-                result += 1
-                check_grid._fill_zeros_in_cluster(r, c)
+                code, count = check_grid._fill_zeros_in_cluster(r, c)
+                result[code].append(count)
 
-        return result
+        return result, sum(len(result[code]) for code in result)
 
     def _fill_zeros_in_cluster(self, r, c):
         target_code = self[r, c]
         target_coords = [(r, c)]
+        count = 0
 
         while target_coords:
             r, c = target_coords.pop(0)
             self[r, c] = 0
+            count += 1
+
             target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code and x not in target_coords)
+
+        return target_code, count
 
     def count_neighbor(self, r, c, targets):
         return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
@@ -96,6 +110,37 @@ class Grid:
 
         return result
 
+    def contain_or_adjacent(self, mask, targets):
+        return sum(self.traverse(lambda x: 1, lambda x: (mask[x] or mask.count_neighbor(*x, [1])) and self[x] in targets))
+
+    def sum(self):
+        return sum(self.traverse(lambda x: self[x], lambda x: True))
+
+    def traverse(self, action, filter):
+        result = []
+
+        for r in range(self.height):
+            for c in range(self.width):
+                if not filter((r, c)):
+                    continue
+
+                result.append(action((r, c)))
+
+        return result
+
+    def masked_sum(self, mask):
+        result = defaultdict(int)
+
+        for r in range(self.height):
+            for c in range(self.width):
+                if not mask[r, c]:
+                    continue
+
+                result[mask[r, c]] += self[r, c]
+
+        return result
+
+
     def __str__(self):
         lines = ["[" + " ".join(map(str, line)) + "]" for line in self._raw_grid]
         aligned_lines = [" " + lines[i] if i else "[" + lines[i] for i in range(len(lines))]
@@ -105,8 +150,9 @@ class Grid:
 
 class Chromosome:
 
-    def __init__(self, genes):
+    def __init__(self, genes, gene_generator):
         self._genes = genes
+        self._gene_generator = gene_generator
         self._cost = None
 
     @property
@@ -123,26 +169,37 @@ class Chromosome:
         child_genes1 = self._genes.copy()
         child_genes2 = self._genes.copy()
 
+
         diff_coords = self._genes.get_diff_coords(partner._genes)
 
+
         for (gene1, gene2), coords in diff_coords.items():
-            if random.randint(0, 1):
-                coords.reverse()
+            mask = Grid(self.genes.height, self.genes.width)
+            for r, c in coords:
+                mask[r, c] = 1
+                child_genes1[r, c] = 0
+                child_genes2[r, c] = 0
 
-            for r, c in coords[:len(coords) // 2]:
-                child_genes1[r, c] = gene1
-                child_genes2[r, c] = gene2
+            self._gene_generator.fill(child_genes1, [gene1, gene2], mask)
+            self._gene_generator.fill(child_genes2, [gene1, gene2], mask)
 
-            for r, c in coords[len(coords) // 2:]:
-                child_genes1[r, c] = gene2
-                child_genes2[r, c] = gene1
+            # if random.randint(0, 1):
+            #     coords.reverse()
 
-        return Chromosome(child_genes1), Chromosome(child_genes2)
+            # for r, c in coords[:len(coords) // 2]:
+            #     child_genes1[r, c] = gene1
+            #     child_genes2[r, c] = gene2
+
+            # for r, c in coords[len(coords) // 2:]:
+            #     child_genes1[r, c] = gene2
+            #     child_genes2[r, c] = gene1
+
+        return Chromosome(child_genes1, self._gene_generator), Chromosome(child_genes2, self._gene_generator)
 
     def _evaluate(self):
-        self._cost = random.randint(10, 100)
+        self._cost = self._gene_generator.evaluate(self._genes)
 
-    def mutate(self):
+    def mutate(self, mutation_rate):
         pass
 
 
@@ -152,43 +209,38 @@ class GeneticAlgorithm:
         self._gene_generator = gene_generator
 
     def run(self, size=20, elitism=2, mutation_rate=0.05):
-        population = [Chromosome(self._gene_generator.generate()) for _ in range(size)]
-
-        population.sort(key=attrgetter("cost"))
+        population = self._initialize(size)
         generation = 1
-
         print(*(x.cost for x in population))
 
+        while generation < 10:
+            population = self._step(population, elitism, mutation_rate)
+            generation += 1
+
+            print(*(x.cost for x in population))
+
+
+    def _initialize(self, size):
+        result = [Chromosome(self._gene_generator.generate(), self._gene_generator) for _ in range(size)]
+        result.sort(key=attrgetter("cost"))
+
+        return result
+
     def _step(self, population, elitism, mutation_rate):
-        result = []
+        result = population[:elitism]
 
-        mating_pool = self._select(population, len(population) - elitism)
-        random.shuffle(mating_pool)
+        while len(result) < len(population):
+            parent1 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+            parent2 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+            child1, child2 = parent1.crossover(parent2)
+            child1.mutate(mutation_rate)
+            child2.mutate(mutation_rate)
+            result.append(child1)
+            result.append(child2)
 
-        for i in range(len(mating_pool) // 2):
-            result.extend(mating_pool[i * 2].crossover(mating_pool[i * 2 + 1]))
-
-        for chromosome in result:
-            chromosome.mutate(mutation_rate)
-
-        return result
-
-
-    def _select(self, population, n, k=2):
-        result = []
-
-        while len(result) < n:
-            result.append(random.sample(population, k).sort(key=attrgetter("cost"))[0])
+        result.sort(key=attrgetter("cost"))
 
         return result
-
-def lerp(start, end, size):
-    gap = (end - start) / (size - 1)
-
-    yield start
-    for i in range(1, size - 1):
-        yield start + i * gap
-    yield end
 
 
 class GeneGenerator:
@@ -245,18 +297,74 @@ class GeneGenerator:
 
             weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for code in self._codes]
             code = choices(self._codes, weights)
-            grid, target_coords, accumulated_areas = self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code)
+            grid, target_coords, accumulated_areas = self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, self._target_mask)
 
         return grid
 
-    def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code):
+    def fill(self, genes, codes, mask):
+        target_coords = genes.get_coords(lambda x: mask[x])
+        accumulated_areas = self._area_map.masked_sum(genes)
+
+        while True:
+            if not target_coords:
+                break
+
+            r, c = randpop(target_coords)
+
+            weights = [self._get_weight_at(genes, r, c, code, accumulated_areas) for code in codes]
+            code = choices(codes, weights)
+            genes, target_coords, accumulated_areas = self._fill_cluster(genes, target_coords, accumulated_areas, r, c, code, mask)
+
+        return genes
+
+    def evaluate(self, genes):
+        # cluster size
+        sizes, _ = genes.analyze_cluster()
+        minimums = [min(sizes[code]) for code in self._codes]
+        raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
+        cluster_size_cost = sum((cost / 1) ** 2  for cost in raw_cluster_size_costs)
+
+        # magnet rule
+        magnet_cost = 0
+        for code in self._magnets:
+            other_codes = self._codes.copy()
+            other_codes.remove(code)
+            raw_magnet_cost = genes.contain_or_adjacent(self._magnets[code], other_codes)
+            mask_size = self._magnets[code].sum()
+            magnet_cost += ((raw_magnet_cost - 0) / (mask_size * 3 / 4 - 0)) ** 2
+
+        # area rule
+        areas = self._area_map.masked_sum(genes)
+        area_cost = 0
+        for code in self._max_areas:
+            raw_area_cost = max(0, areas[code] * 0.8 - self._max_areas[code])
+            area_cost += (raw_area_cost / self._cluster_size) ** 2
+            raw_area_cost = max(0, self._max_areas[code] - areas[code] * 1.2)
+            area_cost += (raw_area_cost / self._cluster_size) ** 2
+
+        # repulsion rule
+        raw_repulsion_cost = 0
+        for r in range(genes.height):
+            for c in range(genes.width):
+                if genes[r, c] not in self._repulsions:
+                    continue
+
+                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]])
+
+        raw_repulsion_cost /= 2
+        repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** 2
+
+        return cluster_size_cost + magnet_cost + area_cost + repulsion_cost
+
+
+    def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
         grid[r, c] = code
         accumulated_areas[code] += self._area_map[r, c]
         current_cluster_size = 1
 
         neighbor_coords = []
         while current_cluster_size < self._cluster_size:
-            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x] and self._target_mask[x] and x not in neighbor_coords)
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x] and mask[x] and x not in neighbor_coords)
 
             if not neighbor_coords:
                 break
@@ -302,39 +410,39 @@ def main():
     generator = GeneGenerator(111, 71, list(range(1, 8)))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(30, 10)
-    generator.add_area_rule([1000, 500, 1000, 1250, 250, 1500, 1500])
+    generator.add_cluster_rule(30, 4)
+    generator.add_area_rule([1000, 500, 1000, 250, 1250, 1500, 1500])
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)
 
-    generator.add_magnet(2, magnet1, 10)
-    generator.add_magnet(3, magnet1, 10)
-    generator.add_magnet(5, magnet2, 10)
+    generator.add_magnet(2, magnet1, 4)
+    generator.add_magnet(3, magnet1, 4)
+    generator.add_magnet(5, magnet2, 4)
 
-    generator.add_repulsion_rule(7, 6)
-
+    generator.add_repulsion_rule(6, 7)
 
 
     # genes = generator.generate()
-    # print(genes.count_cluster())
+    # print(genes.analyze_cluster()[1])
+    # generator.evaluate(genes)
     # plot(genes)
 
 
     # grid1 = generator.generate()
     # grid2 = generator.generate()
 
-    # parent1 = Chromosome(grid1)
-    # parent2 = Chromosome(grid2)
+    # parent1 = Chromosome(grid1, generator)
+    # parent2 = Chromosome(grid2, generator)
     # child1, child2 = parent1.crossover(parent2)
 
-    # print(*[x.genes.count_cluster() for x in [parent1, parent2, child1, child2]])
+    # print(*[x.genes.analyze_cluster() for x in [parent1, parent2, child1, child2]])
     # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
 
+
+
     ga = GeneticAlgorithm(generator)
-    ga.run(3)
-
-
+    ga.run(size=10, elitism=2)
 
 if __name__ == "__main__":
     main()
