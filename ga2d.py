@@ -180,8 +180,8 @@ class Chromosome:
                 child_genes1[r, c] = 0
                 child_genes2[r, c] = 0
 
-            self._gene_generator.fill(child_genes1, [gene1, gene2], mask)
-            self._gene_generator.fill(child_genes2, [gene1, gene2], mask)
+            self._gene_generator.fill(child_genes1, mask, [gene1, gene2])
+            self._gene_generator.fill(child_genes2, mask, [gene1, gene2])
 
             # if random.randint(0, 1):
             #     coords.reverse()
@@ -197,10 +197,23 @@ class Chromosome:
         return Chromosome(child_genes1, self._gene_generator), Chromosome(child_genes2, self._gene_generator)
 
     def _evaluate(self):
-        self._cost = self._gene_generator.evaluate(self._genes)
+        self._cost, self._costs = self._gene_generator.evaluate(self._genes)
 
-    def mutate(self, mutation_rate):
-        pass
+    def mutate(self):
+        region_height = self.genes.height // 4
+        region_width = self.genes.width // 4
+        r_start = random.randint(0, self.genes.height - region_height)
+        c_start = random.randint(0, self.genes.width - region_width)
+
+        region_mask = Grid(self.genes.height, self.genes.width)
+
+        for r in range(r_start, r_start + region_height):
+            for c in range(c_start, c_start + region_width):
+                region_mask[r, c] = 1
+                self.genes[r, c] = 0
+
+        self._gene_generator.fill(self.genes, region_mask)
+        self._cost = None
 
 
 class GeneticAlgorithm:
@@ -219,6 +232,8 @@ class GeneticAlgorithm:
 
             print(*(x.cost for x in population))
 
+        return population[0]
+
 
     def _initialize(self, size):
         result = [Chromosome(self._gene_generator.generate(), self._gene_generator) for _ in range(size)]
@@ -233,8 +248,10 @@ class GeneticAlgorithm:
             parent1 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
             parent2 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
             child1, child2 = parent1.crossover(parent2)
-            child1.mutate(mutation_rate)
-            child2.mutate(mutation_rate)
+            if random.random() < mutation_rate:
+                child1.mutate()
+            if random.random() < mutation_rate:
+                child2.mutate()
             result.append(child1)
             result.append(child2)
 
@@ -301,8 +318,11 @@ class GeneGenerator:
 
         return grid
 
-    def fill(self, genes, codes, mask):
-        target_coords = genes.get_coords(lambda x: mask[x])
+    def fill(self, genes, mask, codes=None):
+        if codes is None:
+            codes = self._codes
+
+        target_coords = genes.get_coords(lambda x: mask[x] and self._target_mask[x])
         accumulated_areas = self._area_map.masked_sum(genes)
 
         while True:
@@ -354,7 +374,14 @@ class GeneGenerator:
         raw_repulsion_cost /= 2
         repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** 2
 
-        return cluster_size_cost + magnet_cost + area_cost + repulsion_cost
+        cost = cluster_size_cost + magnet_cost + area_cost + repulsion_cost
+
+        return cost, {
+            "cluster_size": cluster_size_cost,
+            "magnet": magnet_cost,
+            "area": area_cost,
+            "repulsion": repulsion_cost
+        }
 
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
@@ -364,7 +391,10 @@ class GeneGenerator:
 
         neighbor_coords = []
         while current_cluster_size < self._cluster_size:
-            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x] and mask[x] and x not in neighbor_coords)
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x]
+                                                                                   and mask[x]
+                                                                                   and self._target_mask[x]
+                                                                                   and x not in neighbor_coords)
 
             if not neighbor_coords:
                 break
@@ -424,9 +454,17 @@ def main():
 
 
     # genes = generator.generate()
-    # print(genes.analyze_cluster()[1])
-    # generator.evaluate(genes)
-    # plot(genes)
+    # chromosome = Chromosome(genes, generator)
+
+    # print(chromosome.genes.analyze_cluster()[1])
+    # generator.evaluate(chromosome.genes)
+    # plot(chromosome.genes)
+
+    # chromosome.mutate()
+
+    # print(chromosome.genes.analyze_cluster()[1])
+    # generator.evaluate(chromosome.genes)
+    # plot(chromosome.genes)
 
 
     # grid1 = generator.generate()
@@ -435,14 +473,21 @@ def main():
     # parent1 = Chromosome(grid1, generator)
     # parent2 = Chromosome(grid2, generator)
     # child1, child2 = parent1.crossover(parent2)
+    # parent1.mutate(1.0)
+    # parent2.mutate(1.0)
 
-    # print(*[x.genes.analyze_cluster() for x in [parent1, parent2, child1, child2]])
+    # print(*[x.genes.analyze_cluster()[0] for x in [parent1, parent2, child1, child2]])
+
     # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
 
 
 
     ga = GeneticAlgorithm(generator)
-    ga.run(size=10, elitism=2)
+    best = ga.run(size=10, elitism=2)
+    print(best.genes.analyze_cluster()[1])
+    print(best._costs)
+    plot(best.genes)
+
 
 if __name__ == "__main__":
     main()
