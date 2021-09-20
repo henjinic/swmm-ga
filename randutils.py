@@ -12,6 +12,8 @@ def randpop(sequence, weights=None):
     return sequence.pop(_choices_index(weights))
 
 def _choices_index(weights):
+    weights = [0 if weight < 0 else weight for weight in weights]
+
     if sum(weights) <= 0:
         return random.randrange(len(weights))
 
@@ -26,6 +28,7 @@ def _choices_index(weights):
 
 def main():
     pass
+
 
 if __name__ == "__main__":
     main()

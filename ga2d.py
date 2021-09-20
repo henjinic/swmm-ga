@@ -79,11 +79,16 @@ class Grid:
 
         return target_code, count
 
-    def count_neighbor(self, r, c, targets):
-        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
+    def count_neighbor(self, r, c, targets, is_eight=False):
+        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets, is_eight))
 
-    def traverse_neighbor(self, r, c, action, filter=lambda: True):
-        target_coords = [(r + dr, c + dc) for dr, dc in [(-1, 0), (0, -1), (0, 1), (1, 0)]]
+    def traverse_neighbor(self, r, c, action, filter=lambda: True, is_eight=False):
+        if is_eight:
+            vectors = [(-1, 0), (0, -1), (0, 1), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]
+        else:
+            vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+
+        target_coords = [(r + dr, c + dc) for dr, dc in vectors]
         valid_coords = [(r, c) for r, c in target_coords if 0 <= r < self.height and 0 <= c < self.width]
 
         return [action((r, c)) for r, c in valid_coords if filter((r, c))]
@@ -226,12 +231,12 @@ class GeneticAlgorithm:
         generation = 1
         print(*(x.cost for x in population))
 
-        while generation < 10:
+        while generation < 20:
             population = self._step(population, elitism, mutation_rate)
             generation += 1
 
             print(*(x.cost for x in population))
-
+            print(population[0]._costs)
         return population[0]
 
 
@@ -291,7 +296,7 @@ class GeneGenerator:
         self._area_map = Grid(area_map)
 
     def add_area_rule(self, max_areas):
-        self._max_areas = {code: max_area  for code, max_area in zip(self._codes, max_areas)}
+        self._max_areas = {code: max_area for code, max_area in zip(self._codes, max_areas)}
 
     def add_submask(self, code, submask):
         self._submasks[code] = Grid(submask)
@@ -313,6 +318,7 @@ class GeneGenerator:
             r, c = randpop(target_coords)
 
             weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for code in self._codes]
+
             code = choices(self._codes, weights)
             grid, target_coords, accumulated_areas = self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, self._target_mask)
 
@@ -351,7 +357,7 @@ class GeneGenerator:
             other_codes.remove(code)
             raw_magnet_cost = genes.contain_or_adjacent(self._magnets[code], other_codes)
             mask_size = self._magnets[code].sum()
-            magnet_cost += ((raw_magnet_cost - 0) / (mask_size * 3 / 4 - 0)) ** 2
+            magnet_cost += ((raw_magnet_cost - 0) / (mask_size * 1 / 2 - 0)) ** 2
 
         # area rule
         areas = self._area_map.masked_sum(genes)
@@ -369,7 +375,7 @@ class GeneGenerator:
                 if genes[r, c] not in self._repulsions:
                     continue
 
-                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]])
+                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]], True)
 
         raw_repulsion_cost /= 2
         repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** 2
@@ -382,7 +388,6 @@ class GeneGenerator:
             "area": area_cost,
             "repulsion": repulsion_cost
         }
-
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
         grid[r, c] = code
@@ -397,7 +402,7 @@ class GeneGenerator:
                                                                                    and x not in neighbor_coords)
 
             if not neighbor_coords:
-                break
+                return grid, target_coords, accumulated_areas
 
             neighbor_weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for r, c in neighbor_coords]
 
@@ -407,10 +412,36 @@ class GeneGenerator:
             r, c = randpop(neighbor_coords, neighbor_weights)
             target_coords.remove((r, c))
             grid[r, c] = code
+
             accumulated_areas[code] += self._area_map[r, c]
             current_cluster_size += 1
 
-        return grid, target_coords, accumulated_areas
+        # second phase
+
+        while neighbor_coords:
+            r, c = randpop(neighbor_coords)
+            target_coords.remove((r, c))
+
+            weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for code in self._codes]
+            factored_weights = [weight * 6 if target_code == code else weight for weight, target_code in zip(weights, self._codes)]
+            new_code = choices(self._codes, factored_weights)
+
+            if code != new_code:
+                code = new_code
+                break
+
+            grid[r, c] = code
+            accumulated_areas[code] += self._area_map[r, c]
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x]
+                                                                                   and mask[x]
+                                                                                   and self._target_mask[x]
+                                                                                   and x not in neighbor_coords)
+
+
+
+        return self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, mask)
+
+        # return grid, target_coords, accumulated_areas
 
     def _get_weight_at(self, grid, r, c, code, accumulated_areas):
         weight = self._cluster_cohesion ** grid.count_neighbor(r, c, [code])
@@ -419,13 +450,13 @@ class GeneGenerator:
             weight *= self._submasks[code][r, c]
 
         if code in self._magnets:
-            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1])
+            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1], True)
 
         if code in self._repulsions:
-            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code]) else 1
+            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code], True) else 1
 
         if self._max_areas:
-            weight *= (self._max_areas[code] - accumulated_areas[code]) / self._max_areas[code]
+            weight *= (self._max_areas[code] * 1.5 - accumulated_areas[code]) / (self._max_areas[code] * 1.5)
 
         return weight
 
@@ -440,8 +471,9 @@ def main():
     generator = GeneGenerator(111, 71, list(range(1, 8)))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(30, 4)
+    generator.add_cluster_rule(8, 8)
     generator.add_area_rule([1000, 500, 1000, 250, 1250, 1500, 1500])
+
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)
@@ -453,18 +485,21 @@ def main():
     generator.add_repulsion_rule(6, 7)
 
 
-    # genes = generator.generate()
-    # chromosome = Chromosome(genes, generator)
+    genes = generator.generate()
+    chromosome = Chromosome(genes, generator)
 
-    # print(chromosome.genes.analyze_cluster()[1])
-    # generator.evaluate(chromosome.genes)
-    # plot(chromosome.genes)
+    print(chromosome.genes.analyze_cluster())
+    generator.evaluate(chromosome.genes)
+    print(chromosome.cost, chromosome._costs)
 
-    # chromosome.mutate()
+    plot(chromosome.genes)
 
-    # print(chromosome.genes.analyze_cluster()[1])
-    # generator.evaluate(chromosome.genes)
-    # plot(chromosome.genes)
+    chromosome.mutate()
+
+    print(chromosome.genes.analyze_cluster())
+    generator.evaluate(chromosome.genes)
+    print(chromosome.cost, chromosome._costs)
+    plot(chromosome.genes)
 
 
     # grid1 = generator.generate()
@@ -473,20 +508,19 @@ def main():
     # parent1 = Chromosome(grid1, generator)
     # parent2 = Chromosome(grid2, generator)
     # child1, child2 = parent1.crossover(parent2)
-    # parent1.mutate(1.0)
-    # parent2.mutate(1.0)
 
-    # print(*[x.genes.analyze_cluster()[0] for x in [parent1, parent2, child1, child2]])
+    # print(*[x.cost for x in [parent1, parent2, child1, child2]])
+    # print(*[x._costs for x in [parent1, parent2, child1, child2]])
 
     # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
 
 
 
-    ga = GeneticAlgorithm(generator)
-    best = ga.run(size=10, elitism=2)
-    print(best.genes.analyze_cluster()[1])
-    print(best._costs)
-    plot(best.genes)
+    # ga = GeneticAlgorithm(generator)
+    # best = ga.run(size=20, elitism=2)
+    # print(best.genes.analyze_cluster()[1])
+    # print(best._costs)
+    # plot(best.genes)
 
 
 if __name__ == "__main__":
