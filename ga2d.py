@@ -1,9 +1,10 @@
+import math
 import random
 from collections import defaultdict
 from copy import deepcopy
 from mathutils import lerp
 from operator import attrgetter
-from plotutils import plot
+from plotutils import plot_grid
 from randutils import choices, randpop
 
 
@@ -346,7 +347,7 @@ class GeneGenerator:
     def evaluate(self, genes):
         # cluster size
         sizes, _ = genes.analyze_cluster()
-        minimums = [min(sizes[code]) for code in self._codes]
+        minimums = [min(sizes[code]) if sizes[code] else 0 for code in self._codes]
         raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
         cluster_size_cost = sum((cost / 1) ** 2  for cost in raw_cluster_size_costs)
 
@@ -357,15 +358,16 @@ class GeneGenerator:
             other_codes.remove(code)
             raw_magnet_cost = genes.contain_or_adjacent(self._magnets[code], other_codes)
             mask_size = self._magnets[code].sum()
-            magnet_cost += ((raw_magnet_cost - 0) / (mask_size * 1 / 2 - 0)) ** 2
+            mask_length = math.sqrt(mask_size)
+            magnet_cost += ((raw_magnet_cost - 0) / (mask_length * 3 - 0)) ** 2
 
         # area rule
         areas = self._area_map.masked_sum(genes)
         area_cost = 0
         for code in self._max_areas:
-            raw_area_cost = max(0, areas[code] * 0.8 - self._max_areas[code])
+            raw_area_cost = max(0, areas[code] * 0.5 - self._max_areas[code])
             area_cost += (raw_area_cost / self._cluster_size) ** 2
-            raw_area_cost = max(0, self._max_areas[code] - areas[code] * 1.2)
+            raw_area_cost = max(0, self._max_areas[code] - areas[code] * 1.5)
             area_cost += (raw_area_cost / self._cluster_size) ** 2
 
         # repulsion rule
@@ -375,7 +377,7 @@ class GeneGenerator:
                 if genes[r, c] not in self._repulsions:
                     continue
 
-                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]], True)
+                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]], False)
 
         raw_repulsion_cost /= 2
         repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** 2
@@ -450,10 +452,10 @@ class GeneGenerator:
             weight *= self._submasks[code][r, c]
 
         if code in self._magnets:
-            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1], True)
+            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1], False)
 
         if code in self._repulsions:
-            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code], True) else 1
+            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code], False) else 1
 
         if self._max_areas:
             weight *= (self._max_areas[code] * 1.5 - accumulated_areas[code]) / (self._max_areas[code] * 1.5)
@@ -471,7 +473,7 @@ def main():
     generator = GeneGenerator(111, 71, list(range(1, 8)))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(8, 8)
+    generator.add_cluster_rule(4, 8)
     generator.add_area_rule([1000, 500, 1000, 250, 1250, 1500, 1500])
 
 
@@ -492,14 +494,14 @@ def main():
     generator.evaluate(chromosome.genes)
     print(chromosome.cost, chromosome._costs)
 
-    plot(chromosome.genes)
+    plot_grid(chromosome.genes)
 
     chromosome.mutate()
 
     print(chromosome.genes.analyze_cluster())
     generator.evaluate(chromosome.genes)
     print(chromosome.cost, chromosome._costs)
-    plot(chromosome.genes)
+    plot_grid(chromosome.genes)
 
 
     # grid1 = generator.generate()
@@ -512,7 +514,7 @@ def main():
     # print(*[x.cost for x in [parent1, parent2, child1, child2]])
     # print(*[x._costs for x in [parent1, parent2, child1, child2]])
 
-    # plot(parent1.genes, parent2.genes, child1.genes, child2.genes)
+    # plot_grid(parent1.genes, parent2.genes, child1.genes, child2.genes)
 
 
 
@@ -520,7 +522,7 @@ def main():
     # best = ga.run(size=20, elitism=2)
     # print(best.genes.analyze_cluster()[1])
     # print(best._costs)
-    # plot(best.genes)
+    # plot_grid(best.genes)
 
 
 if __name__ == "__main__":
