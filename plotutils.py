@@ -22,7 +22,7 @@ SITE_CMAP = ListedColormap([
 def plot_grid(*args):
     if len(args) == 1:
         fig, ax = plt.subplots()
-        img = ax.imshow(args[0], cmap="gist_ncar")
+        img = ax.imshow(args[0].raw, cmap="gist_ncar")
         fig.colorbar(img, ax=ax, aspect=50)
     else:
         fig, axs = plt.subplots(1, len(args))

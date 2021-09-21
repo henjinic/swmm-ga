@@ -53,7 +53,7 @@ class Grid:
         )
         ```
         """
-        result = defaultdict(list)
+        result = defaultdict(lambda : dict(sizes=[], neighbors=[]))
         check_grid = self.copy()
 
         for r in range(self.height):
@@ -61,33 +61,36 @@ class Grid:
                 if check_grid[r, c] == 0:
                     continue
 
-                code, count = check_grid._fill_zeros_in_cluster(r, c)
-                result[code].append(count)
+                code, count, neighbors = check_grid._fill_zeros_in_cluster(r, c, self)
+                result[code]["sizes"].append(count)
+                result[code]["neighbors"].append(neighbors)
 
-        return result, sum(len(result[code]) for code in result)
+        return result, sum(len(result[code]["sizes"]) for code in result)
 
-    def _fill_zeros_in_cluster(self, r, c):
+    def _fill_zeros_in_cluster(self, r, c, original_map):
         target_code = self[r, c]
         target_coords = [(r, c)]
         count = 0
+        neighbors = []
 
         while target_coords:
             r, c = target_coords.pop(0)
+            neighbors += self.traverse_neighbor(r, c,
+                                                lambda x: original_map[x],
+                                                lambda x: original_map[x]
+                                                          and original_map[x] != target_code)
             self[r, c] = 0
             count += 1
 
             target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code and x not in target_coords)
 
-        return target_code, count
+        return target_code, count, list(set(neighbors))
 
-    def count_neighbor(self, r, c, targets, is_eight=False):
-        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets, is_eight))
+    def count_neighbor(self, r, c, targets):
+        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
 
-    def traverse_neighbor(self, r, c, action, filter=lambda: True, is_eight=False):
-        if is_eight:
-            vectors = [(-1, 0), (0, -1), (0, 1), (1, 0), (-1, -1), (-1, 1), (1, -1), (1, 1)]
-        else:
-            vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    def traverse_neighbor(self, r, c, action, filter=lambda: True):
+        vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
 
         target_coords = [(r + dr, c + dc) for dr, dc in vectors]
         valid_coords = [(r, c) for r, c in target_coords if 0 <= r < self.height and 0 <= c < self.width]
@@ -189,17 +192,6 @@ class Chromosome:
             self._gene_generator.fill(child_genes1, mask, [gene1, gene2])
             self._gene_generator.fill(child_genes2, mask, [gene1, gene2])
 
-            # if random.randint(0, 1):
-            #     coords.reverse()
-
-            # for r, c in coords[:len(coords) // 2]:
-            #     child_genes1[r, c] = gene1
-            #     child_genes2[r, c] = gene2
-
-            # for r, c in coords[len(coords) // 2:]:
-            #     child_genes1[r, c] = gene2
-            #     child_genes2[r, c] = gene1
-
         return Chromosome(child_genes1, self._gene_generator), Chromosome(child_genes2, self._gene_generator)
 
     def _evaluate(self):
@@ -279,6 +271,7 @@ class GeneGenerator:
         self._magnets = {}
         self._magnet_magnitudes = {}
         self._repulsions = defaultdict(list)
+        self._attractions = defaultdict(list)
         self._area_map = Grid(height, width, value=1)
         self._max_areas = {}
 
@@ -292,6 +285,9 @@ class GeneGenerator:
     def add_repulsion_rule(self, code1, code2):
         self._repulsions[code1].append(code2)
         self._repulsions[code2].append(code1)
+
+    def add_attraction_rule(self, code1, code2):
+        self._attractions[code1].append(code2)
 
     def change_area_map(self, area_map):
         self._area_map = Grid(area_map)
@@ -346,8 +342,8 @@ class GeneGenerator:
 
     def evaluate(self, genes):
         # cluster size
-        sizes, _ = genes.analyze_cluster()
-        minimums = [min(sizes[code]) if sizes[code] else 0 for code in self._codes]
+        cluster_result, _ = genes.analyze_cluster()
+        minimums = [min(cluster_result[code]["sizes"]) if cluster_result[code]["sizes"] else 0 for code in self._codes]
         raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
         cluster_size_cost = sum((cost / 1) ** 2  for cost in raw_cluster_size_costs)
 
@@ -377,18 +373,31 @@ class GeneGenerator:
                 if genes[r, c] not in self._repulsions:
                     continue
 
-                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]], False)
+                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]])
 
         raw_repulsion_cost /= 2
         repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** 2
 
-        cost = cluster_size_cost + magnet_cost + area_cost + repulsion_cost
+        # attraction rule
+        raw_attraction_cost = 0
+        for code, target_codes in self._attractions.items():
+            for neighbors_of_a_cluster in cluster_result[code]["neighbors"]:
+                for target_code in target_codes:
+                    if target_code in neighbors_of_a_cluster:
+                        continue
+
+                    raw_attraction_cost += 1
+
+        attraction_cost = ((raw_attraction_cost - 0) / (1 - 0)) ** 2
+
+        cost = cluster_size_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost
 
         return cost, {
             "cluster_size": cluster_size_cost,
             "magnet": magnet_cost,
             "area": area_cost,
-            "repulsion": repulsion_cost
+            "repulsion": repulsion_cost,
+            "attraction": attraction_cost
         }
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
@@ -425,7 +434,7 @@ class GeneGenerator:
             target_coords.remove((r, c))
 
             weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for code in self._codes]
-            factored_weights = [weight * 6 if target_code == code else weight for weight, target_code in zip(weights, self._codes)]
+            factored_weights = [weight * 1 if target_code == code else weight for weight, target_code in zip(weights, self._codes)]
             new_code = choices(self._codes, factored_weights)
 
             if code != new_code:
@@ -452,13 +461,16 @@ class GeneGenerator:
             weight *= self._submasks[code][r, c]
 
         if code in self._magnets:
-            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1], False)
+            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1])
 
         if code in self._repulsions:
-            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code], False) else 1
+            weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code]) else 1
+
+        if code in self._attractions:
+            weight *= 4 if grid.count_neighbor(r, c, self._attractions[code]) else 1
 
         if self._max_areas:
-            weight *= (self._max_areas[code] * 1.5 - accumulated_areas[code]) / (self._max_areas[code] * 1.5)
+            weight *= (self._max_areas[code] * 1.2 - accumulated_areas[code]) / (self._max_areas[code] * 1.2)
 
         return weight
 
@@ -485,23 +497,30 @@ def main():
     generator.add_magnet(5, magnet2, 4)
 
     generator.add_repulsion_rule(6, 7)
+    generator.add_attraction_rule(5, 7)
 
 
     genes = generator.generate()
     chromosome = Chromosome(genes, generator)
 
-    print(chromosome.genes.analyze_cluster())
+    result, count = chromosome.genes.analyze_cluster()
+    print("the number of clusters", count)
+    for code, dic in result.items():
+        print("code", code)
+        for name, arr in dic.items():
+            print(name, arr)
+
     generator.evaluate(chromosome.genes)
     print(chromosome.cost, chromosome._costs)
 
     plot_grid(chromosome.genes)
 
-    chromosome.mutate()
+    # chromosome.mutate()
 
-    print(chromosome.genes.analyze_cluster())
-    generator.evaluate(chromosome.genes)
-    print(chromosome.cost, chromosome._costs)
-    plot_grid(chromosome.genes)
+    # print(chromosome.genes.analyze_cluster())
+    # generator.evaluate(chromosome.genes)
+    # print(chromosome.cost, chromosome._costs)
+    # plot_grid(chromosome.genes)
 
 
     # grid1 = generator.generate()

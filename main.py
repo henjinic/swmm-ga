@@ -195,47 +195,66 @@ def main():
     generator = GeneGenerator(HEIGHT, WIDTH, list(TAG_TO_CODE.values()))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(8, 8)
+    generator.add_cluster_rule(8, 16)
     generator.add_area_rule([MAX_AREAS[CODE_TO_TAG[code]] for code in TAG_TO_CODE.values()])
     generator.change_area_map(area_map)
 
-    generator.add_submask(1, quiet_region_mask)
-    generator.add_submask(4, commercial_region_mask)
-    generator.add_submask(8, business_region_mask)
+    # condition 1
+    generator.add_submask(TAG_TO_CODE["상업시설"], commercial_region_mask)
+    generator.add_magnet(TAG_TO_CODE["상업시설"], commercial_core_mask, 64)
+    generator.add_submask(TAG_TO_CODE["업무시설"], business_region_mask)
+    generator.add_magnet(TAG_TO_CODE["업무시설"], business_core_mask, 64)
 
-    generator.add_magnet(4, commercial_core_mask, 20)
-    generator.add_magnet(8, business_core_mask, 20)
+    # condition 2
+    generator.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)
 
-    generator.add_magnet(9, neargreen_mask, 10)
-    generator.add_magnet(10, neargreen_mask, 10)
-    generator.add_magnet(11, neargreen_mask, 10)
-    generator.add_magnet(12, neargreen_mask, 10)
+    # condition 3
+    generator.add_magnet(TAG_TO_CODE["상업시설"], big_road_mask, 16)
+    generator.add_magnet(TAG_TO_CODE["업무시설"], big_road_mask, 16)
+    generator.add_magnet(TAG_TO_CODE["유보형복합용지"], big_road_mask, 16)
+    generator.add_magnet(TAG_TO_CODE["자족복합용지"], big_road_mask, 16)
+    generator.add_magnet(TAG_TO_CODE["자족시설"], big_road_mask, 16)
 
-    generator.add_magnet(2, big_road_mask, 20)
-    generator.add_magnet(5, big_road_mask, 20)
-    generator.add_magnet(6, big_road_mask, 20)
-    generator.add_magnet(7, big_road_mask, 20)
+    # condition 4 & 5
+    generator.add_magnet(TAG_TO_CODE["녹지"], neargreen_mask, 4)
+    generator.add_attraction_rule(TAG_TO_CODE["공원"], TAG_TO_CODE["녹지"])
+    generator.add_attraction_rule(TAG_TO_CODE["공공공지"], TAG_TO_CODE["녹지"])
+    generator.add_attraction_rule(TAG_TO_CODE["보행자전용도로"], TAG_TO_CODE["녹지"])
 
-    generator.add_repulsion_rule(1, 2)
-    generator.add_repulsion_rule(1, 4)
-    generator.add_repulsion_rule(1, 5)
-    generator.add_repulsion_rule(1, 6)
-    generator.add_repulsion_rule(1, 7)
-    generator.add_repulsion_rule(1, 8)
-
+    # condition 6
+    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설"])
+    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설"])
+    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["유보형복합용지"])
+    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"])
+    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"])
 
     # genes = generator.generate()
     # chromosome = Chromosome(genes, generator)
 
-    # print(chromosome.genes.analyze_cluster())
+    # print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
     # generator.evaluate(chromosome.genes)
     # print(chromosome.cost, chromosome._costs)
 
     # plot_site(chromosome.genes.raw)
 
 
+    # grid1 = generator.generate()
+    # grid2 = generator.generate()
+
+    # parent1 = Chromosome(grid1, generator)
+    # parent2 = Chromosome(grid2, generator)
+    # child1, child2 = parent1.crossover(parent2)
+
+    # print(*[x.genes.analyze_cluster()[1] for x in [parent1, parent2, child1, child2]])
+    # print(*[x.cost for x in [parent1, parent2, child1, child2]])
+    # print(*[x._costs for x in [parent1, parent2, child1, child2]])
+
+    # plot_site(parent1.genes.raw, parent2.genes.raw, child1.genes.raw, child2.genes.raw)
+
+
+
     ga = GeneticAlgorithm(generator)
-    best = ga.run(size=20, elitism=2)
+    best = ga.run(size=10, elitism=2)
     print(best.genes.analyze_cluster()[1])
     print(best._costs)
     plot_site(best.genes.raw)
