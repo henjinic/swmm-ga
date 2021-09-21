@@ -1,3 +1,4 @@
+from collections import defaultdict
 from ga2d import GeneticAlgorithm, GeneGenerator, Chromosome
 from plotutils import plot_site
 
@@ -55,6 +56,7 @@ def load_site_data(path):
         "Left": create_2dlist(),
         "Right": create_2dlist()
     }
+    original_areas = defaultdict(float)
 
     with open(path) as f:
         f.readline()
@@ -88,8 +90,11 @@ def load_site_data(path):
                 direction_masks["Down"][r][c] = down
                 direction_masks["Left"][r][c] = left
                 direction_masks["Right"][r][c] = right
+                original_areas[original_map[r][c]] += area_map[r][c]
 
-    return original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks
+    original_areas = [v for k, v in sorted(original_areas.items())]
+
+    return original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks, original_areas
 
 
 def create_big_road_mask(road_area_map):
@@ -183,7 +188,7 @@ def create_quiet_region_mask():
 
 
 def main():
-    original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks = load_site_data("sub_og.csv")
+    original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks, original_areas = load_site_data("sub_og.csv")
     big_road_mask = create_big_road_mask(road_area_map)
 
     commercial_core_mask, commercial_region_mask = create_commercial_data()
@@ -195,15 +200,15 @@ def main():
     generator = GeneGenerator(HEIGHT, WIDTH, list(TAG_TO_CODE.values()))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(8, 16)
-    generator.add_area_rule([MAX_AREAS[CODE_TO_TAG[code]] for code in TAG_TO_CODE.values()])
+    generator.add_cluster_rule(12, 8)
+    generator.add_area_rule(original_areas)
     generator.change_area_map(area_map)
 
     # condition 1
     generator.add_submask(TAG_TO_CODE["상업시설"], commercial_region_mask)
-    generator.add_magnet(TAG_TO_CODE["상업시설"], commercial_core_mask, 64)
+    generator.add_magnet(TAG_TO_CODE["상업시설"], commercial_core_mask, 100)
     generator.add_submask(TAG_TO_CODE["업무시설"], business_region_mask)
-    generator.add_magnet(TAG_TO_CODE["업무시설"], business_core_mask, 64)
+    generator.add_magnet(TAG_TO_CODE["업무시설"], business_core_mask, 100)
 
     # condition 2
     generator.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)
@@ -228,14 +233,17 @@ def main():
     generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"])
     generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"])
 
-    # genes = generator.generate()
-    # chromosome = Chromosome(genes, generator)
 
-    # print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
-    # generator.evaluate(chromosome.genes)
-    # print(chromosome.cost, chromosome._costs)
+    sites = []
+    for _ in range(4):
+        chromosome = Chromosome(generator.generate(), generator)
 
-    # plot_site(chromosome.genes.raw)
+        print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
+        generator.evaluate(chromosome.genes)
+        print(chromosome.cost, chromosome._costs)
+        sites.append(chromosome.genes.raw)
+
+    plot_site(*sites)
 
 
     # grid1 = generator.generate()
@@ -253,11 +261,11 @@ def main():
 
 
 
-    ga = GeneticAlgorithm(generator)
-    best = ga.run(size=10, elitism=2)
-    print(best.genes.analyze_cluster()[1])
-    print(best._costs)
-    plot_site(best.genes.raw)
+    # ga = GeneticAlgorithm(generator)
+    # best = ga.run(size=10, elitism=2)
+    # print(best.genes.analyze_cluster()[1])
+    # print(best._costs)
+    # plot_site(best.genes.raw)
 
 
 if __name__ == "__main__":

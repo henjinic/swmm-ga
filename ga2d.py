@@ -341,11 +341,13 @@ class GeneGenerator:
         return genes
 
     def evaluate(self, genes):
+        marginal_penalty_factor = 2
+
         # cluster size
         cluster_result, _ = genes.analyze_cluster()
         minimums = [min(cluster_result[code]["sizes"]) if cluster_result[code]["sizes"] else 0 for code in self._codes]
         raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
-        cluster_size_cost = sum((cost / 1) ** 2  for cost in raw_cluster_size_costs)
+        cluster_size_cost = sum((cost / 1) ** marginal_penalty_factor  for cost in raw_cluster_size_costs)
 
         # magnet rule
         magnet_cost = 0
@@ -355,16 +357,16 @@ class GeneGenerator:
             raw_magnet_cost = genes.contain_or_adjacent(self._magnets[code], other_codes)
             mask_size = self._magnets[code].sum()
             mask_length = math.sqrt(mask_size)
-            magnet_cost += ((raw_magnet_cost - 0) / (mask_length * 3 - 0)) ** 2
+            magnet_cost += ((raw_magnet_cost - mask_size) / (mask_size + mask_length * 3 - mask_size)) ** marginal_penalty_factor
 
         # area rule
         areas = self._area_map.masked_sum(genes)
         area_cost = 0
         for code in self._max_areas:
-            raw_area_cost = max(0, areas[code] * 0.5 - self._max_areas[code])
-            area_cost += (raw_area_cost / self._cluster_size) ** 2
-            raw_area_cost = max(0, self._max_areas[code] - areas[code] * 1.5)
-            area_cost += (raw_area_cost / self._cluster_size) ** 2
+            raw_area_cost = max(0, areas[code] * 0.8 - self._max_areas[code])
+            area_cost += (raw_area_cost / self._cluster_size) ** marginal_penalty_factor
+            raw_area_cost = max(0, self._max_areas[code] - areas[code] * 1.2)
+            area_cost += (raw_area_cost / self._cluster_size) ** marginal_penalty_factor
 
         # repulsion rule
         raw_repulsion_cost = 0
@@ -376,7 +378,7 @@ class GeneGenerator:
                 raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]])
 
         raw_repulsion_cost /= 2
-        repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** 2
+        repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** marginal_penalty_factor
 
         # attraction rule
         raw_attraction_cost = 0
@@ -388,7 +390,7 @@ class GeneGenerator:
 
                     raw_attraction_cost += 1
 
-        attraction_cost = ((raw_attraction_cost - 0) / (1 - 0)) ** 2
+        attraction_cost = ((raw_attraction_cost - 0) / (1 - 0)) ** marginal_penalty_factor
 
         cost = cluster_size_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost
 
@@ -510,7 +512,7 @@ def main():
         for name, arr in dic.items():
             print(name, arr)
 
-    generator.evaluate(chromosome.genes)
+    chromosome._evaluate()
     print(chromosome.cost, chromosome._costs)
 
     plot_grid(chromosome.genes)
