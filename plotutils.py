@@ -16,6 +16,8 @@ SITE_CMAP = ListedColormap([
     "palegreen",
     "olive",
     "green",
+    "red",
+    "royalblue",
 ])
 
 
@@ -37,13 +39,13 @@ def plot_grid(*args):
 def plot_site(*args):
     if len(args) == 1:
         fig, ax = plt.subplots()
-        img = ax.imshow(args[0], cmap=SITE_CMAP, vmin=0, vmax=12)
+        img = ax.imshow(args[0], cmap=SITE_CMAP, vmin=0, vmax=14)
         fig.colorbar(img, ax=ax, aspect=50)
     else:
         fig, axs = plt.subplots(1, len(args))
 
         for ax, site in zip(axs, args):
-            img = ax.imshow(site, cmap=SITE_CMAP, vmin=0, vmax=12)
+            img = ax.imshow(site, cmap=SITE_CMAP, vmin=0, vmax=14)
             fig.colorbar(img, ax=ax, aspect=50)
 
     plt.show()

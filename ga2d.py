@@ -10,11 +10,13 @@ from randutils import choices, randpop
 
 class Grid:
 
-    def __init__(self, *args, value=0):
+    def __init__(self, *args, value=0, direction_masks=None):
         """
         `__init__(raw_data)`\n
         `__init__(height, width)`\n
         """
+        self._direction_masks = direction_masks
+
         if len(args) == 1:
             self._raw_grid = args[0]
         else:
@@ -38,8 +40,12 @@ class Grid:
     def width(self):
         return len(self._raw_grid[0])
 
+    @property
+    def direction_masks(self):
+        return self._direction_masks
+
     def copy(self):
-        return Grid(deepcopy(self._raw_grid))
+        return Grid(deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
     def get_coords(self, filter):
         return [(r, c) for r in range(self.height) for c in range(self.width) if filter((r, c))]
@@ -90,7 +96,24 @@ class Grid:
         return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
 
     def traverse_neighbor(self, r, c, action, filter=lambda: True):
-        vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+        vectors = []
+
+        if self._direction_masks is None:
+            vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+        else:
+            if self._direction_masks["up"][r][c]:
+                vectors.append((-1, 0))
+
+            if self._direction_masks["down"][r][c]:
+                vectors.append((1, 0))
+
+            if self._direction_masks["left"][r][c]:
+                vectors.append((0, -1))
+
+            if self._direction_masks["right"][r][c]:
+                vectors.append((0, 1))
+
+        # vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
 
         target_coords = [(r + dr, c + dc) for dr, dc in vectors]
         valid_coords = [(r, c) for r, c in target_coords if 0 <= r < self.height and 0 <= c < self.width]
@@ -274,6 +297,7 @@ class GeneGenerator:
         self._attractions = defaultdict(list)
         self._area_map = Grid(height, width, value=1)
         self._max_areas = {}
+        self._direction_masks = None
 
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
@@ -299,11 +323,14 @@ class GeneGenerator:
         self._submasks[code] = Grid(submask)
 
     def add_magnet(self, code, magnet, magnitude):
-        self._magnets[code] = Grid(magnet)
+        self._magnets[code] = Grid(magnet, direction_masks=self._direction_masks)
         self._magnet_magnitudes[code] = magnitude
 
+    def add_direction_masks(self, direction_masks):
+        self._direction_masks = direction_masks
+
     def generate(self):
-        grid = Grid(self._height, self._width)
+        grid = Grid(self._height, self._width, direction_masks=self._direction_masks)
 
         target_coords = grid.get_coords(lambda x: self._target_mask[x])
         accumulated_areas = defaultdict(int)
@@ -484,12 +511,21 @@ def main():
     magnet1 = [[1 if 55 < c < 60 else 0 for c in range(71)] for _ in range(111)]
     magnet2 = [[1 if 20 < c < 30 and 40 < r < 50 else 0 for c in range(71)] for r in range(111)]
 
+    up_mask = [[1 if r != 80 else 0 for c in range(71)] for r in range(111)]
+    down_mask = [[1 if r != 79 else 0 for c in range(71)] for r in range(111)]
+    left_mask = [[1 for c in range(71)] for r in range(111)]
+    right_mask = [[1 for c in range(71)] for r in range(111)]
+
+
+
+
     generator = GeneGenerator(111, 71, list(range(1, 8)))
 
     generator.add_mask(mask)
-    generator.add_cluster_rule(4, 8)
+    generator.add_cluster_rule(8, 8)
     generator.add_area_rule([1000, 500, 1000, 250, 1250, 1500, 1500])
 
+    generator.add_direction_masks({"up": up_mask, "down": down_mask, "left": left_mask, "right": right_mask})
 
     generator.add_submask(1, submask1)
     generator.add_submask(4, submask2)
