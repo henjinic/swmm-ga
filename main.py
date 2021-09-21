@@ -1,5 +1,5 @@
 from collections import defaultdict
-from ga2d import GeneticAlgorithm, GeneGenerator, Chromosome
+from ga2d import GeneticAlgorithm, GeneRuler, Chromosome
 from plotutils import plot_site
 
 
@@ -21,6 +21,7 @@ TAG_TO_CODE = {
     "보행자전용도로": 12,
     "상업시설2": 13,
     "업무시설2": 14,
+    "근생용지": 15
 }
 
 CODE_TO_TAG = {TAG_TO_CODE[tag]: tag for tag in TAG_TO_CODE}
@@ -64,7 +65,7 @@ def load_site_data(path):
         f.readline()
 
         for line in f:
-            key, _, _, tag, _, _, _, area, *_ = line.strip().split(",")
+            key, _, _, tag, _, _, area, *_ = line.strip().split(",")
 
             if key[1] == "D":
                 r = int(key[2:5])
@@ -77,9 +78,9 @@ def load_site_data(path):
             if key[1] == "N":
                 r = int(key[2:5])
                 c = int(key[5:7])
+
                 if tag in NEARGREEN_TAGS:
                     neargreen_mask[r][c] = 1
-
             else:
                 r = int(key[1:4])
                 c = int(key[4:6])
@@ -89,16 +90,6 @@ def load_site_data(path):
                     tag += "1" if r < 40 else "2"
                 elif tag =="업무시설":
                     tag += "1" if c < 40 else "2"
-                #      and r < 40:
-                #     tag += "1"
-                # else:
-                #     tag += "2"
-
-                # if tag == "업무시설" and c < 40:
-                #     tag += "1"
-                # else:
-                #     tag += "2"
-
 
                 original_map[r][c] = TAG_TO_CODE[tag]
                 mask[r][c] = 1
@@ -112,7 +103,6 @@ def load_site_data(path):
     original_areas = [v for k, v in sorted(original_areas.items())]
 
     return original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks, original_areas
-
 
 def create_big_road_mask(road_area_map):
     big_road_mask = create_2dlist()
@@ -133,11 +123,17 @@ COMMERCIAL_CORE_OFFSET1 = (3, 4)
 COMMERCIAL_CORE2 = (68, 48)
 COMMERCIAL_CORE_OFFSET2 = (7, 7)
 
+BUSINESS_CORE1 = (72, 32)
+BUSINESS_CORE_OFFSET1 = (2, 2)
+BUSINESS_CORE2 = (80, 42)
+BUSINESS_CORE_OFFSET2 = (5, 5)
+
 def create_core_region_data(core, offset):
     core_mask = create_2dlist()
     region_mask = create_2dlist()
 
-    for dr, dc in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1)]:
+    # for dr, dc in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1)]:
+    for dr, dc in [(0, 0)]:
         core_mask[core[0] + dr][core[1] + dc] = 1
 
     for r in range(core[0] - offset[0], core[0] + offset[0] + 1):
@@ -145,61 +141,6 @@ def create_core_region_data(core, offset):
             region_mask[r][c] = 1
 
     return core_mask, region_mask
-
-
-# def create_commercial_data():
-#     commercial_core_mask = create_2dlist()
-#     commercial_region_mask = create_2dlist()
-
-#     comm1_r, comm1_c = COMMERCIAL_CORE1
-#     comm2_r, comm2_c = COMMERCIAL_CORE2
-
-#     for dr, dc in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1)]:
-#         commercial_core_mask[comm1_r + dr][comm1_c + dc] = 1
-#         commercial_core_mask[comm2_r + dr][comm2_c + dc] = 1
-
-#     comm1_offset_r, comm1_offset_c = COMMERCIAL_CORE1_OFFSET
-#     comm2_offset_r, comm2_offset_c = COMMERCIAL_CORE2_OFFSET
-
-#     for r in range(comm1_r - comm1_offset_r, comm1_r + comm1_offset_r + 1):
-#         for c in range(comm1_c - comm1_offset_c, comm1_c + comm1_offset_c + 1):
-#             commercial_region_mask[r][c] = 1
-
-#     for r in range(comm2_r - comm2_offset_r, comm2_r + comm2_offset_r + 1):
-#         for c in range(comm2_c - comm2_offset_c, comm2_c + comm2_offset_c + 1):
-#             commercial_region_mask[r][c] = 1
-
-#     return commercial_core_mask, commercial_region_mask
-
-BUSINESS_CORE1 = (72, 32)
-BUSINESS_CORE_OFFSET1 = (2, 2)
-BUSINESS_CORE2 = (80, 42)
-BUSINESS_CORE_OFFSET2 = (5, 5)
-
-# def create_business_data():
-#     business_core_mask = create_2dlist()
-#     business_region_mask = create_2dlist()
-
-#     busi1_r, busi1_c = BUSINESS_CORE1
-#     busi2_r, busi2_c = BUSINESS_CORE2
-
-#     for dr, dc in [(0, 0), (1, 0), (0, 1), (-1, 0), (0, -1)]:
-#         business_core_mask[busi1_r + dr][busi1_c + dc] = 1
-#         business_core_mask[busi2_r + dr][busi2_c + dc] = 1
-
-#     busi1_offset_r, busi1_offset_c = BUSINESS_CORE1_OFFSET
-#     busi2_offset_r, busi2_offset_c = BUSINESS_CORE2_OFFSET
-
-#     for r in range(busi1_r - busi1_offset_r, busi1_r + busi1_offset_r + 1):
-#         for c in range(busi1_c - busi1_offset_c, busi1_c + busi1_offset_c + 1):
-#             business_region_mask[r][c] = 1
-
-#     for r in range(busi2_r - busi2_offset_r, busi2_r + busi2_offset_r + 1):
-#         for c in range(busi2_c - busi2_offset_c, busi2_c + busi2_offset_c + 1):
-#             business_region_mask[r][c] = 1
-
-#     return business_core_mask, business_region_mask
-
 
 QUIET_DIVIDE_POINT1 = (43, 53)
 QUIET_DIVIDE_POINT2 = (48, 67)
@@ -218,85 +159,81 @@ def create_quiet_region_mask():
 
 
 def main():
-    original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks, original_areas = load_site_data("sub_og.csv")
+    original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks, original_areas = load_site_data("new_sub.csv")
     big_road_mask = create_big_road_mask(road_area_map)
-
+    quiet_region_mask = create_quiet_region_mask()
     commercial_core_mask1, commercial_region_mask1 = create_core_region_data(COMMERCIAL_CORE1, COMMERCIAL_CORE_OFFSET1)
     commercial_core_mask2, commercial_region_mask2 = create_core_region_data(COMMERCIAL_CORE2, COMMERCIAL_CORE_OFFSET2)
     business_core_mask1, business_region_mask1 = create_core_region_data(BUSINESS_CORE1, BUSINESS_CORE_OFFSET1)
     business_core_mask2, business_region_mask2 = create_core_region_data(BUSINESS_CORE2, BUSINESS_CORE_OFFSET2)
 
-    # commercial_core_mask, commercial_region_mask = create_commercial_data()
-    # business_core_mask, business_region_mask = create_business_data()
+    ruler = GeneRuler(HEIGHT, WIDTH, list(TAG_TO_CODE.values()))
 
-    quiet_region_mask = create_quiet_region_mask()
-
-    generator = GeneGenerator(HEIGHT, WIDTH, list(TAG_TO_CODE.values()))
-
-    generator.add_mask(mask)
-    generator.add_cluster_rule(24, 8)
-    generator.add_direction_masks(direction_masks)
-    generator.add_area_rule(original_areas)
-    generator.change_area_map(area_map)
+    ruler.add_mask(mask)
+    ruler.add_cluster_rule(24, 8)
+    ruler.add_direction_masks(direction_masks)
+    ruler.add_area_rule(original_areas, change_rate=0.5)
+    ruler.change_area_map(area_map)
 
     # condition 1
-    generator.add_submask(TAG_TO_CODE["상업시설1"], commercial_region_mask1)
-    generator.add_magnet(TAG_TO_CODE["상업시설1"], commercial_core_mask1, 32)
+    ruler.add_submask(TAG_TO_CODE["상업시설1"], commercial_region_mask1)
+    ruler.add_magnet(TAG_TO_CODE["상업시설1"], commercial_core_mask1, 16)
 
-    generator.add_submask(TAG_TO_CODE["상업시설2"], commercial_region_mask2)
-    generator.add_magnet(TAG_TO_CODE["상업시설2"], commercial_core_mask2, 32)
+    ruler.add_submask(TAG_TO_CODE["상업시설2"], commercial_region_mask2)
+    ruler.add_magnet(TAG_TO_CODE["상업시설2"], commercial_core_mask2, 16)
 
-    generator.add_submask(TAG_TO_CODE["업무시설1"], business_region_mask1)
-    generator.add_magnet(TAG_TO_CODE["업무시설1"], business_core_mask1, 32)
+    ruler.add_submask(TAG_TO_CODE["업무시설1"], business_region_mask1)
+    ruler.add_magnet(TAG_TO_CODE["업무시설1"], business_core_mask1, 16)
 
-    generator.add_submask(TAG_TO_CODE["업무시설2"], business_region_mask2)
-    generator.add_magnet(TAG_TO_CODE["업무시설2"], business_core_mask2, 32)
+    ruler.add_submask(TAG_TO_CODE["업무시설2"], business_region_mask2)
+    ruler.add_magnet(TAG_TO_CODE["업무시설2"], business_core_mask2, 16)
 
     # condition 2
-    generator.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)
+    ruler.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)
 
     # condition 3
-    generator.add_magnet(TAG_TO_CODE["상업시설1"], big_road_mask, 16)
-    generator.add_magnet(TAG_TO_CODE["상업시설2"], big_road_mask, 16)
-    generator.add_magnet(TAG_TO_CODE["업무시설1"], big_road_mask, 16)
-    generator.add_magnet(TAG_TO_CODE["업무시설2"], big_road_mask, 16)
-    generator.add_magnet(TAG_TO_CODE["유보형복합용지"], big_road_mask, 16)
-    generator.add_magnet(TAG_TO_CODE["자족복합용지"], big_road_mask, 16)
-    generator.add_magnet(TAG_TO_CODE["자족시설"], big_road_mask, 16)
+    ruler.add_magnet(TAG_TO_CODE["상업시설1"], big_road_mask, 4)
+    ruler.add_magnet(TAG_TO_CODE["상업시설2"], big_road_mask, 4)
+    ruler.add_magnet(TAG_TO_CODE["업무시설1"], big_road_mask, 4)
+    ruler.add_magnet(TAG_TO_CODE["업무시설2"], big_road_mask, 4)
+    ruler.add_magnet(TAG_TO_CODE["유보형복합용지"], big_road_mask, 4)
+    ruler.add_magnet(TAG_TO_CODE["자족복합용지"], big_road_mask, 4)
+    ruler.add_magnet(TAG_TO_CODE["자족시설"], big_road_mask, 4)
 
     # condition 4 & 5
-    generator.add_magnet(TAG_TO_CODE["녹지"], neargreen_mask, 4)
-    generator.add_attraction_rule(TAG_TO_CODE["공원"], TAG_TO_CODE["녹지"])
-    generator.add_attraction_rule(TAG_TO_CODE["공공공지"], TAG_TO_CODE["녹지"])
-    generator.add_attraction_rule(TAG_TO_CODE["보행자전용도로"], TAG_TO_CODE["녹지"])
+    ruler.add_magnet(TAG_TO_CODE["녹지"], neargreen_mask, 4)
+    ruler.add_attraction_rule(TAG_TO_CODE["공원"], TAG_TO_CODE["녹지"])
+    ruler.add_attraction_rule(TAG_TO_CODE["공공공지"], TAG_TO_CODE["녹지"])
+    ruler.add_attraction_rule(TAG_TO_CODE["보행자전용도로"], TAG_TO_CODE["녹지"])
 
     # condition 6
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설1"])
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설2"])
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설1"])
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설2"])
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["유보형복합용지"])
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"])
-    generator.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설1"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설2"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설1"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설2"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["유보형복합용지"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"])
+    ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"])
 
 
     sites = []
-    for _ in range(4):
-        chromosome = Chromosome(generator.generate(), generator)
+    for _ in range(2):
+        chromosome = Chromosome(ruler.generate(), ruler)
 
         print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
-        generator.evaluate(chromosome.genes)
-        print(chromosome.cost, chromosome._costs)
+        ruler.evaluate(chromosome.genes)
+        print("total cost:", chromosome.cost)
+        print(chromosome.cost_detail)
         sites.append(chromosome.genes.raw)
 
     plot_site(*sites)
 
 
-    # grid1 = generator.generate()
-    # grid2 = generator.generate()
+    # grid1 = ruler.generate()
+    # grid2 = ruler.generate()
 
-    # parent1 = Chromosome(grid1, generator)
-    # parent2 = Chromosome(grid2, generator)
+    # parent1 = Chromosome(grid1, ruler)
+    # parent2 = Chromosome(grid2, ruler)
     # child1, child2 = parent1.crossover(parent2)
     # print(child1.genes.direction_masks)
     # print(*[x.genes.analyze_cluster()[1] for x in [parent1, parent2, child1, child2]])
@@ -306,12 +243,11 @@ def main():
     # plot_site(parent1.genes.raw, parent2.genes.raw, child1.genes.raw, child2.genes.raw)
 
 
-
-    # ga = GeneticAlgorithm(generator)
-    # best = ga.run(size=10, elitism=2)
+    # ga = GeneticAlgorithm(ruler)
+    # best = ga.run(size=20, elitism=2, mutation_rate=0.1, step=10)
     # print(best.genes.analyze_cluster()[1])
     # print(best._costs)
-    # plot_site(best.genes.raw)
+    # # plot_site(best.genes.raw)
 
 
 if __name__ == "__main__":
