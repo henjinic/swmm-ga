@@ -2,6 +2,7 @@ import math
 import random
 from collections import defaultdict
 from copy import deepcopy
+from logger import GALogger
 from mathutils import lerp
 from operator import attrgetter
 from plotutils import plot_grid
@@ -250,18 +251,27 @@ class GeneticAlgorithm:
     def __init__(self, gene_ruler):
         self._gene_ruler = gene_ruler
 
-    def run(self, size=20, elitism=2, mutation_rate=0.05, step=3):
+    def cost_based_run(self, size=20, chlid_count=20, mutation_rate=0.05, step=3):
+        logger = GALogger("D:/_swmm_results", "now")
+
         population = self._initialize(size)
         generation = 1
         print(generation, ">>>", *(int(x.cost) for x in population))
         print(population[0].cost_detail)
 
+        for i, chromosome in enumerate(population):
+            logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
+
         while generation < step:
-            population = self._step(population, elitism, mutation_rate)
+            population = self._cost_based_step(population, chlid_count, mutation_rate)
             generation += 1
 
             print(generation, ">>>", *(int(x.cost) for x in population))
             print(population[0].cost_detail)
+
+            for i, chromosome in enumerate(population):
+                logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
+
         return population[0]
 
 
@@ -271,23 +281,60 @@ class GeneticAlgorithm:
 
         return result
 
-    def _step(self, population, elitism, mutation_rate):
-        result = population[:elitism]
+    def _cost_based_step(self, population, chlid_count, mutation_rate):
+        size = len(population)
 
-        while len(result) < len(population):
-            parent1 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
-            parent2 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+        for _ in range(chlid_count // 2):
+            parent1 = choices(population, list(lerp(1, 0.5, size)))
+            parent2 = choices(population, list(lerp(1, 0.5, size)))
             child1, child2 = parent1.crossover(parent2)
+
             if random.random() < mutation_rate:
                 child1.mutate()
+
             if random.random() < mutation_rate:
                 child2.mutate()
-            result.append(child1)
-            result.append(child2)
 
-        result.sort(key=attrgetter("cost"))
+            population.append(child1)
+            population.append(child2)
 
-        return result
+        population.sort(key=attrgetter("cost"))
+
+        return population[:size]
+
+    # def age_based_run(self, size=20, elitism=2, mutation_rate=0.05, step=3):
+    #     population = self._initialize(size)
+    #     generation = 1
+    #     print(generation, ">>>", *(int(x.cost) for x in population))
+    #     print(population[0].cost_detail)
+
+    #     while generation < step:
+    #         population = self._age_based_step(population, elitism, mutation_rate)
+    #         generation += 1
+
+    #         print(generation, ">>>", *(int(x.cost) for x in population))
+    #         print(population[0].cost_detail)
+    #     return population[0]
+
+    # def _age_based_step(self, population, elitism, mutation_rate):
+    #     result = population[:elitism]
+
+    #     while len(result) < len(population):
+    #         parent1 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+    #         parent2 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+    #         child1, child2 = parent1.crossover(parent2)
+
+    #         if random.random() < mutation_rate:
+    #             child1.mutate()
+    #         if random.random() < mutation_rate:
+    #             child2.mutate()
+
+    #         result.append(child1)
+    #         result.append(child2)
+
+    #     result.sort(key=attrgetter("cost"))
+
+    #     return result
 
 
 class GeneRuler:
