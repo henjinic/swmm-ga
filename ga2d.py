@@ -251,7 +251,7 @@ class GeneticAlgorithm:
     def __init__(self, gene_ruler):
         self._gene_ruler = gene_ruler
 
-    def cost_based_run(self, size=20, chlid_count=20, mutation_rate=0.05, step=3):
+    def cost_based_run(self, size=20, chlid_count=20, mutation_rate=0.05, stable_step_for_exit=20):
         logger = GALogger("D:/_swmm_results", "now")
 
         population = self._initialize(size)
@@ -262,7 +262,9 @@ class GeneticAlgorithm:
         for i, chromosome in enumerate(population):
             logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
 
-        while generation < step:
+        best_cost = population[0].cost
+        stable_step = 0
+        while stable_step < stable_step_for_exit:
             population = self._cost_based_step(population, chlid_count, mutation_rate)
             generation += 1
 
@@ -271,6 +273,16 @@ class GeneticAlgorithm:
 
             for i, chromosome in enumerate(population):
                 logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
+
+            if population[0].cost == best_cost:
+                stable_step += 1
+            elif population[0].cost < best_cost:
+                best_cost = population[0].cost
+                stable_step = 0
+            else:
+                print("Warning: unreachable code")
+
+
 
         return population[0]
 

@@ -244,10 +244,10 @@ def main():
 
 
     ga = GeneticAlgorithm(ruler)
-    best = ga.cost_based_run(size=10, chlid_count=10, mutation_rate=0.5, step=5)
+    best = ga.cost_based_run(size=20, chlid_count=20, mutation_rate=0.5, stable_step_for_exit=20)
     # best = ga.age_based_run(size=20, elitism=2, mutation_rate=0.5, step=20)
-    print(best.genes.analyze_cluster()[1])
-    print(best.cost_detail)
+    print("the number of clusters:", best.genes.analyze_cluster()[1])
+    print("best chromosome details", best.cost_detail)
     plot_site(best.genes.raw)
 
 
