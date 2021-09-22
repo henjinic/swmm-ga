@@ -1,4 +1,3 @@
-import math
 import random
 from collections import defaultdict
 from copy import deepcopy
@@ -11,16 +10,21 @@ from randutils import choices, randpop
 
 class Grid:
 
-    def __init__(self, *args, value=0, direction_masks=None):
+    def __init__(self, raw_data=None, height=None, width=None, value=0, direction_masks=None):
         """
         `__init__(raw_data)`\n
         `__init__(height, width)`\n
         """
 
-        if len(args) == 1:
-            self._raw_grid = args[0]
+        if raw_data is not None:
+            self._raw_grid = raw_data
         else:
-            self._raw_grid = [[value] * args[1] for _ in range(args[0])]
+            self._raw_grid = [[value] * width for _ in range(height)]
+
+        # if len(args) == 1:
+        #     self._raw_grid = args[0]
+        # else:
+        #     self._raw_grid = [[value] * args[1] for _ in range(args[0])]
 
         self._direction_masks = direction_masks
 
@@ -65,7 +69,7 @@ class Grid:
         return self._direction_masks
 
     def copy(self):
-        return Grid(deepcopy(self._raw_grid), direction_masks=self._direction_masks)
+        return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
     def get_coords(self, filter):
         return [(r, c) for r in range(self.height) for c in range(self.width) if filter((r, c))]
@@ -222,7 +226,7 @@ class Chromosome:
         diff_coords = self._genes.get_diff_coords(partner._genes)
 
         for (gene1, gene2), coords in diff_coords.items():
-            mask = Grid(self.genes.height, self.genes.width)
+            mask = Grid(height=self.genes.height, width=self.genes.width)
             for r, c in coords:
                 mask[r, c] = 1
                 child_genes1[r, c] = 0
@@ -242,7 +246,7 @@ class Chromosome:
         r_start = random.randint(0, self.genes.height - region_height)
         c_start = random.randint(0, self.genes.width - region_width)
 
-        region_mask = Grid(self.genes.height, self.genes.width)
+        region_mask = Grid(height=self.genes.height, width=self.genes.width)
 
         for r in range(r_start, r_start + region_height):
             for c in range(c_start, c_start + region_width):
@@ -319,39 +323,59 @@ class GeneticAlgorithm:
 
         return population[:size]
 
-    # def age_based_run(self, size=20, elitism=2, mutation_rate=0.05, step=3):
-    #     population = self._initialize(size)
-    #     generation = 1
-    #     print(generation, ">>>", *(int(x.cost) for x in population))
-    #     print(population[0].cost_detail)
+    def age_based_run(self, size=20, elitism=2, mutation_rate=0.05, stable_step_for_exit=20):
+        logger = GALogger("D:/_swmm_results", "now")
 
-    #     while generation < step:
-    #         population = self._age_based_step(population, elitism, mutation_rate)
-    #         generation += 1
+        population = self._initialize(size)
+        generation = 1
+        print(generation, ">>>", *(int(x.cost) for x in population))
+        print(population[0].cost_detail)
 
-    #         print(generation, ">>>", *(int(x.cost) for x in population))
-    #         print(population[0].cost_detail)
-    #     return population[0]
+        for i, chromosome in enumerate(population):
+            logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
 
-    # def _age_based_step(self, population, elitism, mutation_rate):
-    #     result = population[:elitism]
+        best_cost = population[0].cost
+        stable_step = 0
+        while stable_step < stable_step_for_exit:
+            population = self._age_based_step(population, elitism, mutation_rate)
+            generation += 1
 
-    #     while len(result) < len(population):
-    #         parent1 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
-    #         parent2 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
-    #         child1, child2 = parent1.crossover(parent2)
+            print(generation, ">>>", *(int(x.cost) for x in population))
+            print(population[0].cost_detail)
 
-    #         if random.random() < mutation_rate:
-    #             child1.mutate()
-    #         if random.random() < mutation_rate:
-    #             child2.mutate()
+            for i, chromosome in enumerate(population):
+               logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
 
-    #         result.append(child1)
-    #         result.append(child2)
+            if population[0].cost == best_cost:
+                stable_step += 1
+            elif population[0].cost < best_cost:
+                best_cost = population[0].cost
+                stable_step = 0
+            else:
+                print("Warning: unreachable code")
 
-    #     result.sort(key=attrgetter("cost"))
+        return population[0]
 
-    #     return result
+    def _age_based_step(self, population, elitism, mutation_rate):
+        result = population[:elitism]
+
+        while len(result) < len(population):
+            parent1 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+            parent2 = choices(population, list(lerp(1, 0.5, len(population) - elitism)))
+            child1, child2 = parent1.crossover(parent2)
+
+            if random.random() < mutation_rate:
+                child1.mutate()
+
+            if random.random() < mutation_rate:
+                child2.mutate()
+
+            result.append(child1)
+            result.append(child2)
+
+        result.sort(key=attrgetter("cost"))
+
+        return result
 
 
 class GeneRuler:
@@ -360,7 +384,7 @@ class GeneRuler:
         self._height = height
         self._width = width
         self._codes = codes
-        self._target_mask = Grid(height, width, value=1)
+        self._target_mask = Grid(height=height, width=width, value=1)
         self._cluster_size = 1
         self._cluster_cohesion = 1
         self._submasks = {}
@@ -368,11 +392,12 @@ class GeneRuler:
         self._magnet_magnitudes = defaultdict(list)
         self._repulsions = defaultdict(list)
         self._attractions = defaultdict(list)
-        self._area_map = Grid(height, width, value=1)
+        self._area_map = Grid(height=height, width=width, value=1)
         self._max_areas = {}
         self._area_change_rate = None
         self._area_change_amount = None
         self._direction_masks = None
+        self._my_rules = {}
 
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
@@ -407,8 +432,14 @@ class GeneRuler:
     def add_direction_masks(self, direction_masks):
         self._direction_masks = direction_masks
 
+    def add_my_rule(self, name, cost_function, ideal, goal):
+        self._my_rules[name] = {}
+        self._my_rules[name]["cost_function"] = cost_function
+        self._my_rules[name]["ideal"] = ideal
+        self._my_rules[name]["goal"] = goal
+
     def generate(self):
-        grid = Grid(self._height, self._width, direction_masks=self._direction_masks)
+        grid = Grid(height=self._height, width=self._width, direction_masks=self._direction_masks)
 
         target_coords = grid.get_coords(lambda x: self._target_mask[x])
         accumulated_areas = defaultdict(int)
@@ -462,7 +493,12 @@ class GeneRuler:
 
         raw_magnet_cost = 0
         for code in self._magnets:
-            raw_magnet_cost += sum([is_nears.count(False) for is_nears in cluster_result[code]["is_near_mask"]])
+            for is_nears in cluster_result[code]["is_near_mask"]:
+                for is_near, magnitude in zip(is_nears, self._magnet_magnitudes[code]):
+                    if not is_near:
+                        raw_magnet_cost += magnitude / 4
+
+            # raw_magnet_cost += sum([is_nears.count(False) for is_nears in cluster_result[code]["is_near_mask"]])
         magnet_cost = ((raw_magnet_cost - 0) / (1 - 0)) ** marginal_penalty_factor
 
         # area rule
@@ -504,14 +540,22 @@ class GeneRuler:
 
         attraction_cost = ((raw_attraction_cost - 0) / (1 - 0)) ** marginal_penalty_factor
 
-        cost = cluster_count_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost
+        my_costs = {}
+        for my_rule_name, rule_data in self._my_rules.items():
+            raw_cost = rule_data["cost_function"](genes.raw)
+
+            my_costs[my_rule_name] = ((raw_cost - rule_data["ideal"]) / (rule_data["goal"] - rule_data["ideal"])) ** marginal_penalty_factor
+
+
+        cost = cluster_count_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost + sum(my_costs.values())
 
         return cost, {
             "cluster_count": cluster_count_cost,
             "magnet": magnet_cost,
             "area": area_cost,
             "repulsion": repulsion_cost,
-            "attraction": attraction_cost
+            "attraction": attraction_cost,
+            **my_costs
         }
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
@@ -621,7 +665,7 @@ def main():
 
     ruler.add_repulsion_rule(6, 7)
     ruler.add_attraction_rule(5, 7)
-
+    ruler.add_my_rule("a", lambda x: 15, 5, 10)
 
     genes = ruler.generate()
     chromosome = Chromosome(genes, ruler)
