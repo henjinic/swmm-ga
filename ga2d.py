@@ -372,9 +372,10 @@ class GeneRuler:
     def add_mask(self, mask):
         self._target_mask = Grid(mask)
 
-    def add_cluster_rule(self, cluster_size, cluster_cohesion):
+    def add_cluster_rule(self, cluster_size, cluster_cohesion, cluster_count):
         self._cluster_size = cluster_size
         self._cluster_cohesion = cluster_cohesion
+        self._cluster_count = cluster_count
 
     def add_repulsion_rule(self, code1, code2):
         self._repulsions[code1].append(code2)
@@ -442,11 +443,15 @@ class GeneRuler:
     def evaluate(self, genes):
         marginal_penalty_factor = 2
 
+        cluster_result, cluster_count = genes.analyze_cluster()
+
         # cluster size
-        cluster_result, _ = genes.analyze_cluster()
-        minimums = [min(cluster_result[code]["sizes"]) if cluster_result[code]["sizes"] else 0 for code in self._codes]
-        raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
-        cluster_size_cost = sum((cost / 1) ** marginal_penalty_factor  for cost in raw_cluster_size_costs)
+        # minimums = [min(cluster_result[code]["sizes"]) if cluster_result[code]["sizes"] else 0 for code in self._codes]
+        # raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
+        # cluster_size_cost = sum((cost / 1) ** marginal_penalty_factor  for cost in raw_cluster_size_costs)
+
+        # cluster count
+        cluster_count_cost = max(0, cluster_count - self._cluster_count) ** marginal_penalty_factor
 
         # magnet rule
         magnet_cost = 0
@@ -498,10 +503,10 @@ class GeneRuler:
 
         attraction_cost = ((raw_attraction_cost - 0) / (1 - 0)) ** marginal_penalty_factor
 
-        cost = cluster_size_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost
+        cost = cluster_count_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost
 
         return cost, {
-            "cluster_size": cluster_size_cost,
+            "cluster_count": cluster_count_cost,
             "magnet": magnet_cost,
             "area": area_cost,
             "repulsion": repulsion_cost,

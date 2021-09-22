@@ -170,7 +170,7 @@ def main():
     ruler = GeneRuler(HEIGHT, WIDTH, list(TAG_TO_CODE.values()))
 
     ruler.add_mask(mask)
-    ruler.add_cluster_rule(24, 8)
+    ruler.add_cluster_rule(8, 8, 200)
     ruler.add_direction_masks(direction_masks)
     ruler.add_area_rule(original_areas, change_rate=0.5)
     ruler.change_area_map(area_map)
@@ -216,17 +216,17 @@ def main():
     ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"])
 
 
-    # sites = []
-    # for _ in range(2):
-    #     chromosome = Chromosome(ruler.generate(), ruler)
+    sites = []
+    for _ in range(2):
+        chromosome = Chromosome(ruler.generate(), ruler)
 
-    #     print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
-    #     ruler.evaluate(chromosome.genes)
-    #     print("total cost:", chromosome.cost)
-    #     print(chromosome.cost_detail)
-    #     sites.append(chromosome.genes.raw)
+        print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
+        ruler.evaluate(chromosome.genes)
+        print("total cost:", chromosome.cost)
+        print(chromosome.cost_detail)
+        sites.append(chromosome.genes.raw)
 
-    # plot_site(*sites)
+    plot_site(*sites)
 
 
     # grid1 = ruler.generate()
