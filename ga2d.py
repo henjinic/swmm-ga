@@ -70,7 +70,7 @@ class Grid:
     def get_coords(self, filter):
         return [(r, c) for r in range(self.height) for c in range(self.width) if filter((r, c))]
 
-    def analyze_cluster(self):
+    def analyze_cluster(self, masks=None):
         """
         ```
         return: (
@@ -79,7 +79,13 @@ class Grid:
         )
         ```
         """
-        result = defaultdict(lambda : dict(sizes=[], neighbors=[]))
+        if masks is None:
+            masks = {}
+            result = defaultdict(lambda : dict(sizes=[], neighbors=[]))
+        else:
+            result = defaultdict(lambda : dict(sizes=[], neighbors=[], is_near_mask=[]))
+
+
         check_grid = self.copy()
 
         for r in range(self.height):
@@ -87,17 +93,23 @@ class Grid:
                 if check_grid[r, c] == 0:
                     continue
 
-                code, count, neighbors = check_grid._fill_zeros_in_cluster(r, c, self)
+                code, count, neighbors, is_near_mask = check_grid._fill_zeros_in_cluster(r, c, self, masks)
                 result[code]["sizes"].append(count)
                 result[code]["neighbors"].append(neighbors)
+                if code in masks:
+                    result[code]["is_near_mask"].append(is_near_mask)
 
         return result, sum(len(result[code]["sizes"]) for code in result)
 
-    def _fill_zeros_in_cluster(self, r, c, original_map):
+    def _fill_zeros_in_cluster(self, r, c, original_map, masks):
         target_code = self[r, c]
         target_coords = [(r, c)]
         count = 0
         neighbors = []
+        if target_code in masks:
+            is_near_mask = [False] * len(masks[target_code])
+        else:
+            is_near_mask = None
 
         while target_coords:
             r, c = target_coords.pop(0)
@@ -105,12 +117,20 @@ class Grid:
                                                 lambda x: original_map[x],
                                                 lambda x: original_map[x]
                                                           and original_map[x] != target_code)
+
+            if target_code in masks:
+                for i, mask in enumerate(masks[target_code]):
+                    if is_near_mask[i]:
+                        continue
+
+                    is_near_mask[i] = bool(mask.count_neighbor(r, c, [1]))
+
             self[r, c] = 0
             count += 1
 
             target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code and x not in target_coords)
 
-        return target_code, count, list(set(neighbors))
+        return target_code, count, list(set(neighbors)), is_near_mask
 
     def count_neighbor(self, r, c, targets):
         return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
@@ -152,17 +172,6 @@ class Grid:
         return sum(self.traverse(lambda x: self[x], lambda x: True))
 
     def traverse(self, action, filter):
-        # result = []
-
-        # for r in range(self.height):
-        #     for c in range(self.width):
-        #         if not filter((r, c)):
-        #             continue
-
-        #         result.append(action((r, c)))
-
-        # return result
-
         return [action((r, c)) for r in range(self.height) for c in range(self.width) if filter((r, c))]
 
     def masked_sum(self, mask):
@@ -210,9 +219,7 @@ class Chromosome:
         child_genes1 = self._genes.copy()
         child_genes2 = self._genes.copy()
 
-
         diff_coords = self._genes.get_diff_coords(partner._genes)
-
 
         for (gene1, gene2), coords in diff_coords.items():
             mask = Grid(self.genes.height, self.genes.width)
@@ -281,8 +288,6 @@ class GeneticAlgorithm:
                 stable_step = 0
             else:
                 print("Warning: unreachable code")
-
-
 
         return population[0]
 
@@ -359,8 +364,8 @@ class GeneRuler:
         self._cluster_size = 1
         self._cluster_cohesion = 1
         self._submasks = {}
-        self._magnets = {}
-        self._magnet_magnitudes = {}
+        self._magnets = defaultdict(list)
+        self._magnet_magnitudes = defaultdict(list)
         self._repulsions = defaultdict(list)
         self._attractions = defaultdict(list)
         self._area_map = Grid(height, width, value=1)
@@ -396,8 +401,8 @@ class GeneRuler:
         self._submasks[code] = Grid(submask)
 
     def add_magnet(self, code, magnet, magnitude):
-        self._magnets[code] = Grid(magnet, direction_masks=self._direction_masks)
-        self._magnet_magnitudes[code] = magnitude
+        self._magnets[code].append(Grid(magnet, direction_masks=self._direction_masks))
+        self._magnet_magnitudes[code].append(magnitude)
 
     def add_direction_masks(self, direction_masks):
         self._direction_masks = direction_masks
@@ -443,9 +448,9 @@ class GeneRuler:
     def evaluate(self, genes):
         marginal_penalty_factor = 2
 
-        cluster_result, cluster_count = genes.analyze_cluster()
+        cluster_result, cluster_count = genes.analyze_cluster(self._magnets)
 
-        # cluster size
+        # # cluster size
         # minimums = [min(cluster_result[code]["sizes"]) if cluster_result[code]["sizes"] else 0 for code in self._codes]
         # raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
         # cluster_size_cost = sum((cost / 1) ** marginal_penalty_factor  for cost in raw_cluster_size_costs)
@@ -454,30 +459,26 @@ class GeneRuler:
         cluster_count_cost = max(0, cluster_count - self._cluster_count) ** marginal_penalty_factor
 
         # magnet rule
-        magnet_cost = 0
+
+        raw_magnet_cost = 0
         for code in self._magnets:
-            other_codes = self._codes.copy()
-            other_codes.remove(code)
-            raw_magnet_cost = genes.contain_or_adjacent(self._magnets[code], other_codes)
-            mask_size = self._magnets[code].sum()
-            mask_length = math.sqrt(mask_size)
-            magnet_cost += ((raw_magnet_cost - mask_size) / (mask_size + mask_length * 3 - mask_size)) ** marginal_penalty_factor
+            raw_magnet_cost += sum([is_nears.count(False) for is_nears in cluster_result[code]["is_near_mask"]])
+        magnet_cost = ((raw_magnet_cost - 0) / (1 - 0)) ** marginal_penalty_factor
 
         # area rule
         areas = self._area_map.masked_sum(genes)
         area_cost = 0
         for code in self._max_areas:
             if self._area_change_rate is not None:
-                raw_area_cost = max(0, areas[code] * (1 - self._area_change_rate) - self._max_areas[code])
-                area_cost += (raw_area_cost / self._cluster_size) ** marginal_penalty_factor
-                raw_area_cost = max(0, self._max_areas[code] - areas[code] * (1 + self._area_change_rate))
-                area_cost += (raw_area_cost / self._cluster_size) ** marginal_penalty_factor
+                raw_area_cost = max(0, self._max_areas[code] * (1 - self._area_change_rate) - areas[code])
+                area_cost += (raw_area_cost / 1) ** marginal_penalty_factor
+                raw_area_cost = max(0, areas[code] - self._max_areas[code] * (1 + self._area_change_rate))
+                area_cost += (raw_area_cost / 1) ** marginal_penalty_factor
             else:
-                raw_area_cost = max(0, (areas[code] - self._area_change_amount) - self._max_areas[code])
-                area_cost += (raw_area_cost / self._cluster_size) ** marginal_penalty_factor
-                raw_area_cost = max(0, self._max_areas[code] - (areas[code] + self._area_change_amount))
-                area_cost += (raw_area_cost / self._cluster_size) ** marginal_penalty_factor
-
+                raw_area_cost = max(0, (self._max_areas[code] - self._area_change_amount) - areas[code])
+                area_cost += (raw_area_cost / 1) ** marginal_penalty_factor
+                raw_area_cost = max(0, areas[code] - (self._max_areas[code] + self._area_change_amount))
+                area_cost += (raw_area_cost / 1) ** marginal_penalty_factor
 
         # repulsion rule
         raw_repulsion_cost = 0
@@ -561,8 +562,6 @@ class GeneRuler:
                                                                                    and self._target_mask[x]
                                                                                    and x not in neighbor_coords)
 
-
-
         return self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, mask)
 
         # return grid, target_coords, accumulated_areas
@@ -574,7 +573,8 @@ class GeneRuler:
             weight *= self._submasks[code][r, c]
 
         if code in self._magnets:
-            weight *= self._magnet_magnitudes[code] ** self._magnets[code].count_neighbor(r, c, [1])
+            for magnet, magnitude in zip(self._magnets[code], self._magnet_magnitudes):
+                weight *= magnitude ** magnet.count_neighbor(r, c, [1])
 
         if code in self._repulsions:
             weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code]) else 1
@@ -594,8 +594,8 @@ def main():
     mask = [[1 if c > 4 and r < 105 else 0 for c in range(71)] for r in range(111)]
     submask1 = [[1 if r < 40 else 0 for _ in range(71)] for r in range(111)]
     submask2 = [[1 if c > 40 else 0 for c in range(71)] for _ in range(111)]
-    magnet1 = [[1 if 55 < c < 60 else 0 for c in range(71)] for _ in range(111)]
-    magnet2 = [[1 if 20 < c < 30 and 40 < r < 50 else 0 for c in range(71)] for r in range(111)]
+    magnet1 = [[1 if 40 < c < 60 else 0 for c in range(71)] for _ in range(111)]
+    magnet2 = [[1 if c < 30 and r < 50 else 0 for c in range(71)] for r in range(111)]
 
     up_mask = [[1 if r != 80 else 0 for c in range(71)] for r in range(111)]
     down_mask = [[1 if r != 79 else 0 for c in range(71)] for r in range(111)]
@@ -603,13 +603,11 @@ def main():
     right_mask = [[1 for c in range(71)] for r in range(111)]
 
 
-
-
     ruler = GeneRuler(111, 71, list(range(1, 8)))
 
     ruler.add_mask(mask)
-    ruler.add_cluster_rule(8, 8)
-    ruler.add_area_rule([1000, 500, 1000, 250, 1250, 1500, 1500], change_amount=10)
+    ruler.add_cluster_rule(16, 8, 300)
+    ruler.add_area_rule([1000, 500, 1000, 250, 200, 1500, 1500], change_rate=0.5)
 
     ruler.add_direction_masks({"up": up_mask, "down": down_mask, "left": left_mask, "right": right_mask})
 
@@ -618,6 +616,7 @@ def main():
 
     ruler.add_magnet(2, magnet1, 4)
     ruler.add_magnet(3, magnet1, 4)
+    ruler.add_magnet(3, magnet2, 4)
     ruler.add_magnet(5, magnet2, 4)
 
     ruler.add_repulsion_rule(6, 7)
@@ -629,10 +628,10 @@ def main():
 
     result, count = chromosome.genes.analyze_cluster()
     print("the number of clusters", count)
-    for code, dic in result.items():
-        print("code", code)
-        for name, arr in dic.items():
-            print(name, arr)
+    # for code, dic in result.items():
+    #     print("code", code)
+    #     for name, arr in dic.items():
+    #         print(name, arr)
 
     chromosome._evaluate()
     print(chromosome.cost, chromosome._costs)
