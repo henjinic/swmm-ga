@@ -8,13 +8,8 @@ def lerp(start, end, size):
 
 
 def main():
-    print(*lerp(0, 10, 5))
-    print(*lerp(0, 10, 4))
-    print(*lerp(0, 10, 3))
-
-    print(*lerp(10, -10, 5))
-    print(*lerp(10, -10, 4))
-    print(*lerp(10, -10, 3))
+    for i in lerp(0, 10, 5):
+        print(i)
 
 if __name__ == "__main__":
     main()

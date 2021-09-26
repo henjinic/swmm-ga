@@ -1,12 +1,13 @@
 import os
-import pathlib
 from datetime import datetime
 
-
+# 3
 class GALogger:
 
-    def __init__(self, base_dir, model_name):
+    def __init__(self, base_dir, model_name, partial_cost_names):
         """model_name: "now" -> `datetime.now().strftime("%Y-%m-%d_%H-%M-%S")`"""
+        import pathlib
+
         if model_name == "now":
             model_name = str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
 
@@ -15,24 +16,24 @@ class GALogger:
             self._model_dir.mkdir(parents=True)
 
         self._costs_path = (self._model_dir / "costs.csv")
+        self._partial_cost_names = partial_cost_names
+
         with self._costs_path.open("w") as f:
-            f.write("generation,rank,costs\n")
+            f.write("generation,ranking,total," + ",".join(self._partial_cost_names) + "\n")
 
     def log(self, generation, ranking, gene, costs):
         dir_path = (self._model_dir / str(generation))
-
         if not dir_path.exists():
             dir_path.mkdir()
 
+        partial_costs = [costs[cost_name] for cost_name in self._partial_cost_names]
         with self._costs_path.open("a") as f:
-            f.write(",".join(map(str, [generation, ranking] + costs)))
-            f.write("\n")
+            f.write(",".join(map(str, [generation, ranking, costs["total"]] + partial_costs)) + "\n")
 
-        with (dir_path / str(ranking)).with_suffix(".csv").open("w") as f:
+        with (dir_path / str(ranking).with_suffix(".csv")).open("w") as f:
             for line in gene:
-                f.write(",".join(map(str, line)))
-                f.write("\n")
-
+                f.write(",".join(map(str, line)) + "\n")
+#
 
 class GALogger27:
 
@@ -50,7 +51,7 @@ class GALogger27:
             f.write("generation,rank,costs\n")
 
     def log(self, generation, ranking, gene, costs):
-        dir_path = os.path.join(self._model_dir, generation)
+        dir_path = os.path.join(self._model_dir, str(generation))
 
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)

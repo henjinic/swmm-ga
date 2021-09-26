@@ -4,3 +4,4 @@ docs/
 Excel/
 PCSWMM*/
 venv/
+*.log

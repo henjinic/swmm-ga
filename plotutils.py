@@ -53,7 +53,12 @@ def plot_site(*args):
 
 
 def main():
-    pass
+    gene = []
+    with open("D:/_swmm_results/2021-09-23_18-44-53/76/0.csv") as f:
+        for line in f:
+            gene.append(list(map(int, line.split(","))))
+
+    plot_site(gene)
 
 if __name__ == "__main__":
     main()
