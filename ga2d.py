@@ -462,10 +462,10 @@ class GeneRuler:
         # raw_cluster_size_costs = [max(0, self._cluster_size - minimum) for minimum in minimums]
         # cluster_size_cost = sum((cost / 1) ** marginal_penalty_factor  for cost in raw_cluster_size_costs)
 
-        # cluster count
-        cluster_count_cost = 0
-        if self._cluster_count is not None:
-            cluster_count_cost = max(0, cluster_count - self._cluster_count) ** marginal_penalty_factor
+        # # cluster count
+        # cluster_count_cost = 0
+        # if self._cluster_count is not None:
+        #     cluster_count_cost = max(0, cluster_count - self._cluster_count) ** marginal_penalty_factor
 
         # magnet rule
 
@@ -494,30 +494,6 @@ class GeneRuler:
                 raw_area_cost = max(0, areas[code] - (self._max_areas[code] + self._area_change_amount))
                 area_cost += (raw_area_cost / 1) ** marginal_penalty_factor
 
-        # repulsion rule
-        raw_repulsion_cost = 0
-        for r in range(genes.height):
-            for c in range(genes.width):
-                if genes[r, c] not in self._repulsions:
-                    continue
-
-                raw_repulsion_cost += genes.count_neighbor(r, c, self._repulsions[genes[r, c]])
-
-        raw_repulsion_cost /= 2
-        repulsion_cost = ((raw_repulsion_cost - 0) / (1 - 0)) ** marginal_penalty_factor
-
-        # attraction rule
-        # raw_attraction_cost = 0
-        # for code, target_codes in self._attractions.items():
-        #     for neighbors_of_a_cluster in cluster_result[code]["neighbors"]:
-        #         for target_code in target_codes:
-        #             if target_code in neighbors_of_a_cluster:
-        #                 continue
-
-        #             raw_attraction_cost += 1
-
-        # attraction_cost = ((raw_attraction_cost - 0) / (1 - 0)) ** marginal_penalty_factor
-
         cost = 0
         for rule in self._rules:
             result[str(rule)] = rule.evaluate(genes) ** marginal_penalty_factor
@@ -528,20 +504,9 @@ class GeneRuler:
 
             my_costs[my_rule_name] = ((raw_cost - rule_data["ideal"]) / (rule_data["goal"] - rule_data["ideal"])) ** marginal_penalty_factor
 
-
-        # cost += cluster_count_cost + magnet_cost + area_cost + repulsion_cost + attraction_cost + sum(my_costs.values())
+        result["total"] = sum(result.values())
 
         return result
-
-        # return {
-        #     "total": cost,
-        #     "cluster_count": cluster_count_cost,
-        #     "magnet": magnet_cost,
-        #     "area": area_cost,
-        #     "repulsion": repulsion_cost,
-        #     "attraction": attraction_cost,
-        #     **my_costs
-        # }
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
         grid[r, c] = code
@@ -620,6 +585,40 @@ class GeneRuler:
             else:
                 weight *= (self._max_areas[code] + self._area_change_amount - accumulated_areas[code]) / (self._max_areas[code] + self._area_change_amount)
         return weight
+
+
+class ClusterSizeMinRule:
+
+    def __str__(self):
+        return "cluster_size_min_" + str(self._minimum)
+
+    def __init__(self, gene, minimum):
+        self._gene = gene
+        self._minimum = minimum
+
+    def evaluate(self, genes):
+        cluster_result, _ = genes.analyze_cluster()
+
+        if self._gene in cluster_result:
+            minimum = min(cluster_result[self._gene]["sizes"])
+        else:
+            minimum = 0
+
+        return max(0, self._minimum - minimum)
+
+
+class ClusterCountMaxRule:
+
+    def __str__(self):
+        return "cluster_count_max_" + str(self._maximum)
+
+    def __init__(self, maximum):
+        self._maximum = maximum
+
+    def evaluate(self, genes):
+        _, cluster_count = genes.analyze_cluster()
+
+        return max(0, cluster_count - self._maximum)
 
 
 class AttractionRule:
@@ -706,9 +705,12 @@ def main():
 
 
     ruler = GeneRuler(10, 10, list(range(1, 5)))
-    ruler.add_cluster_rule(2, 8, 300)
+    ruler.add_cluster_rule(1, 8, 300)
     ruler.add_rule(AttractionRule(from_gene=1, to_gene=2, ideal=0, goal=1))
     ruler.add_rule(RepulsionRule(gene1=3, gene2=4, ideal=0, goal=1))
+    ruler.add_rule(ClusterCountMaxRule(maximum=3))
+    ruler.add_rule(ClusterSizeMinRule(1, minimum=3))
+
     genes = ruler.generate()
     chromosome = Chromosome(genes, ruler)
     print(chromosome.cost_detail)
