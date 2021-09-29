@@ -1,24 +1,39 @@
-import timeit
+from matplotlib import pyplot as plt
 
-def foo(text):
-    return text
-
-
-# print(timeit.timeit("foo(a + '\\n')", setup="a = 'hello'", globals=globals()))
-# print(timeit.timeit("foo(f'{a}\\n')", setup="a = 'hello'", globals=globals()))
-# print(timeit.timeit("foo(a); foo('\\n')", setup="a = 'hello'", globals=globals()))
+from ga2d import Chromosome, ClusterSizeMinRule, GeneRuler, GeneticAlgorithm, Grid
+from ga2d import AreaMaxRule, AreaMinRule, AttractionRule, ClusterCountMaxRule, ClusterSizeMinRule, MagnetRule, RepulsionRule
 
 
-# print(timeit.timeit('foo("1,2" + ",".join(["a", "b", "c"]))', globals=globals()))
-# print(timeit.timeit('foo(",".join(["1", "2"] + ["a", "b", "c"]))', globals=globals()))
+ruler = GeneRuler(10, 10, list(range(1, 5)))
+ruler.add_cluster_rule(2, 4, 300)
+ruler.add_rule(AttractionRule(from_gene=1, to_gene=2, ideal=0, goal=1))
+ruler.add_rule(RepulsionRule(gene1=3, gene2=4, ideal=0, goal=1))
+ruler.add_rule(ClusterCountMaxRule(maximum=3))
+ruler.add_rule(ClusterSizeMinRule(gene=1, minimum=3))
+ruler.add_rule(AreaMaxRule(gene=2, maximum=5, area_map=Grid(height=10, width=10, value=1)))
+ruler.add_rule(AreaMinRule(gene=2, minimum=4, area_map=Grid(height=10, width=10, value=1)))
+magnet = Grid(height=10, width=10, name="school")
+magnet[1, 1] = 1
+magnet[2, 1] = 1
+magnet[3, 1] = 1
+ruler.add_rule(MagnetRule(gene=1, mask=magnet, ideal=0, goal=1))
 
-class Bar:
+parent1 = Chromosome(ruler.generate(), ruler)
+parent2 = Chromosome(ruler.generate(), ruler)
+print(parent1.cost_detail)
+print(parent2.cost_detail)
 
-    def foo(self):
-        print("hello")
+child1, child2 = parent1.crossover(parent2)
+print(child1.cost_detail)
+print(child2.cost_detail)
 
-    def bar(self):
-        print("world")
+plt.subplot(221)
+plt.imshow(parent1.genes.raw)
+plt.subplot(222)
+plt.imshow(parent2.genes.raw)
+plt.subplot(223)
+plt.imshow(child1.genes.raw)
+plt.subplot(224)
+plt.imshow(child2.genes.raw)
+plt.show()
 
-Bar().foo.__self__.bar()
-Bar().foo.__func__(1)
