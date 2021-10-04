@@ -498,12 +498,6 @@ class GeneRuler:
 
         # if code in self._attractions:
         #     weight *= 4 if grid.count_neighbor(r, c, self._attractions[code]) else 1
-
-        # if self._max_areas:
-        #     if self._area_change_rate is not None:
-        #         weight *= (self._max_areas[code] * (1 + self._area_change_rate) - accumulated_areas[code]) / (self._max_areas[code] * (1 + self._area_change_rate))
-        #     else:
-        #         weight *= (self._max_areas[code] + self._area_change_amount - accumulated_areas[code]) / (self._max_areas[code] + self._area_change_amount)
         return weight
 
 
@@ -548,7 +542,9 @@ class AreaMaxRule:
         return max(0, areas[self._gene] - self._maximum)
 
     def weigh(self, genes, r, c, gene):
-        return 1
+        current_area = self._area_map.masked_sum(genes)[self._gene]
+        return (self._maximum - current_area) / self._maximum
+
 
 class AreaMinRule:
 
@@ -566,7 +562,9 @@ class AreaMinRule:
         return max(0, self._minimum - areas[self._gene])
 
     def weigh(self, genes, r, c, gene):
-        return 1
+        current_area = self._area_map.masked_sum(genes)[self._gene]
+        return 10 if current_area < self._minimum else 1
+
 
 class ClusterSizeMinRule:
 
