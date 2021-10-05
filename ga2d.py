@@ -6,10 +6,7 @@ from operator import attrgetter
 from logger import GALogger27
 from mathutils import lerp
 from randutils import choices, randpop
-
-# 3
-from logger import GALogger
-#
+from rules import ClusterCountMaxRule, ClusterSizeMinRule
 
 
 class Grid:
@@ -21,7 +18,10 @@ class Grid:
         """
 
         if raw_data is not None:
-            self._raw_grid = raw_data
+            if isinstance(raw_data, Grid):
+                self._raw_grid = raw_data._raw_grid
+            else:
+                self._raw_grid = raw_data
         else:
             self._raw_grid = [[value] * width for _ in range(height)]
 
@@ -214,9 +214,7 @@ class Chromosome:
 
     @property
     def cost(self):
-        if self._costs is None:
-            self._evaluate()
-        return self._costs["total"]
+        return self.cost_detail["total"]
 
     @property
     def cost_detail(self):
@@ -242,9 +240,6 @@ class Chromosome:
 
         return Chromosome(child_genes1, self._gene_ruler), Chromosome(child_genes2, self._gene_ruler)
 
-    def _evaluate(self):
-        self._costs = self._gene_ruler.evaluate(self._genes)
-
     def mutate(self):
         region_height = self.genes.height // 5
         region_width = self.genes.width // 5
@@ -260,6 +255,9 @@ class Chromosome:
 
         self._gene_ruler.fill(self.genes, region_mask)
         self._cost = None
+
+    def _evaluate(self):
+        self._costs = self._gene_ruler.evaluate(self._genes)
 
 
 class GeneticAlgorithm:
@@ -352,41 +350,37 @@ class GeneticAlgorithm:
 
 class GeneRuler:
 
+    CLUSTER_COHESION = 8
     MARGINAL_PENALTY_FACTOR = 2
 
-    def __init__(self, height, width, codes):
+    def __init__(self, height, width, codes, mask=None):
         self._height = height
         self._width = width
         self._codes = codes
-        self._target_mask = Grid(height=height, width=width, value=1)
+
+        if mask is None:
+            self._target_mask = Grid(height=height, width=width, value=1)
+        else:
+            self._target_mask = Grid(mask)
+
         self._cluster_size = 1
-        self._cluster_cohesion = 1
-        self._cluster_count = None
+        self._rules = []
         self._submasks = {}
-        self._magnets = defaultdict(list)
-        self._magnet_magnitudes = defaultdict(list)
         self._area_map = Grid(height=height, width=width, value=1)
         self._direction_masks = None
-        self._my_rules = {}
-        self._rules = []
+
+    @property
+    def _cell_count(self):
+        return self._target_mask.sum()
 
     def add_rule(self, rule):
+        if isinstance(rule, ClusterCountMaxRule):
+            self._cluster_size = self._cell_count // rule.maximum
+
         self._rules.append(rule)
-
-    def add_mask(self, mask):
-        self._target_mask = Grid(mask)
-
-    def add_cluster_rule(self, cluster_size, cluster_cohesion, cluster_count):
-        self._cluster_size = cluster_size
-        self._cluster_cohesion = cluster_cohesion
-        self._cluster_count = cluster_count
 
     def add_submask(self, code, submask):
         self._submasks[code] = Grid(submask)
-
-    def add_magnet(self, code, magnet, magnitude):
-        self._magnets[code].append(Grid(magnet, direction_masks=self._direction_masks))
-        self._magnet_magnitudes[code].append(magnitude)
 
     def add_direction_masks(self, direction_masks):
         self._direction_masks = direction_masks
@@ -447,7 +441,7 @@ class GeneRuler:
 
             neighbor_weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for r, c in neighbor_coords]
 
-            if not sum(neighbor_weights):
+            if sum(neighbor_weights) == 0:
                 break
 
             r, c = randpop(neighbor_coords, neighbor_weights)
@@ -481,185 +475,15 @@ class GeneRuler:
         return self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, mask)
 
     def _get_weight_at(self, grid, r, c, code, accumulated_areas):
-        weight = self._cluster_cohesion ** grid.count_neighbor(r, c, [code])
+        if code in self._submasks and self._submasks[code][r, c] == 0:
+            return 0
+
+        weight = self.CLUSTER_COHESION ** grid.count_neighbor(r, c, [code])
 
         for rule in self._rules:
             weight *= rule.weigh(grid, r, c, code)
 
-        # if code in self._submasks:
-        #     weight *= self._submasks[code][r, c]
-
-        # if code in self._magnets:
-        #     for magnet, magnitude in zip(self._magnets[code], self._magnet_magnitudes):
-        #         weight *= magnitude ** magnet.count_neighbor(r, c, [1])
-
-        # if code in self._repulsions:
-        #     weight *= 0 if grid.count_neighbor(r, c, self._repulsions[code]) else 1
-
-        # if code in self._attractions:
-        #     weight *= 4 if grid.count_neighbor(r, c, self._attractions[code]) else 1
         return weight
-
-
-class MagnetRule:
-
-    def __str__(self):
-        return "_".join(map(str, ["magnet", self._gene, self._mask.name]))
-
-    def __init__(self, gene, mask, ideal, goal):
-        self._gene = gene
-        self._mask = mask
-        self._ideal = ideal
-        self._goal = goal
-
-    def evaluate(self, genes):
-        cluster_result, cluster_count = genes.analyze_cluster({self._gene: [self._mask]})
-
-        result = 0
-
-        for is_nears in cluster_result[self._gene]["is_near_mask"]:
-            if not is_nears[0]:
-                result += 1
-
-        return (result - self._ideal) / (self._goal - self._ideal)
-
-    def weigh(self, genes, r, c, gene):
-        return 1
-
-class AreaMaxRule:
-
-    def __str__(self):
-        return "_".join(map(str, ["area_max", self._gene, self._maximum]))
-
-    def __init__(self, gene, maximum, area_map):
-        self._gene = gene
-        self._area_map = area_map
-        self._maximum = maximum
-
-    def evaluate(self, genes):
-        areas = self._area_map.masked_sum(genes)
-
-        return max(0, areas[self._gene] - self._maximum)
-
-    def weigh(self, genes, r, c, gene):
-        current_area = self._area_map.masked_sum(genes)[self._gene]
-        return (self._maximum - current_area) / self._maximum
-
-
-class AreaMinRule:
-
-    def __str__(self):
-        return "_".join(map(str, ["area_min", self._gene, self._minimum]))
-
-    def __init__(self, gene, minimum, area_map):
-        self._gene = gene
-        self._area_map = area_map
-        self._minimum = minimum
-
-    def evaluate(self, genes):
-        areas = self._area_map.masked_sum(genes)
-
-        return max(0, self._minimum - areas[self._gene])
-
-    def weigh(self, genes, r, c, gene):
-        current_area = self._area_map.masked_sum(genes)[self._gene]
-        return 10 if current_area < self._minimum else 1
-
-
-class ClusterSizeMinRule:
-
-    def __str__(self):
-        return "_".join(map(str, ["cluster_size_min", self._gene, self._minimum]))
-
-    def __init__(self, gene, minimum):
-        self._gene = gene
-        self._minimum = minimum
-
-    def evaluate(self, genes):
-        cluster_result, _ = genes.analyze_cluster()
-
-        if self._gene in cluster_result:
-            minimum = min(cluster_result[self._gene]["sizes"])
-        else:
-            minimum = 0
-
-        return max(0, self._minimum - minimum)
-
-    def weigh(self, genes, r, c, gene):
-        return 1
-
-class ClusterCountMaxRule:
-
-    def __str__(self):
-        return "cluster_count_max_" + str(self._maximum)
-
-    def __init__(self, maximum):
-        self._maximum = maximum
-
-    def evaluate(self, genes):
-        _, cluster_count = genes.analyze_cluster()
-
-        return max(0, cluster_count - self._maximum)
-
-    def weigh(self, genes, r, c, gene):
-        return 1
-
-class AttractionRule:
-
-    def __str__(self):
-        return "_".join(map(str, ["attraction", self._from_gene, self._to_gene]))
-
-    def __init__(self, from_gene, to_gene, ideal, goal):
-        self._from_gene = from_gene
-        self._to_gene = to_gene
-        self._ideal = ideal
-        self._goal = goal
-
-    def evaluate(self, genes):
-        cost = 0
-        cluster_result, _ = genes.analyze_cluster()
-
-        for neighbors_of_a_cluster in cluster_result[self._from_gene]["neighbors"]:
-            if self._to_gene in neighbors_of_a_cluster:
-                continue
-
-            cost += 1
-
-        return (cost - self._ideal) / (self._goal - self._ideal)
-
-    def weigh(self, genes, r, c, gene):
-        return 1
-
-
-class RepulsionRule:
-
-    def __str__(self):
-        return "_".join(map(str, ["repulsion", self._gene1, self._gene2]))
-
-    def __init__(self, gene1, gene2, ideal, goal):
-        self._gene1 = gene1
-        self._gene2 = gene2
-        self._ideal = ideal
-        self._goal = goal
-
-    def evaluate(self, genes):
-        cost = 0
-        for r in range(genes.height):
-            for c in range(genes.width):
-                if genes[r, c] != self._gene1:
-                    continue
-
-                cost += genes.count_neighbor(r, c, [self._gene2])
-
-        return (cost - self._ideal) / (self._goal - self._ideal)
-
-    def weigh(self, genes, r, c, gene):
-        if gene == self._gene1 and genes.count_neighbor(r, c, [self._gene2]) > 0:
-            return 0
-        elif gene == self._gene2 and genes.count_neighbor(r, c, [self._gene1]) > 0:
-            return 0
-        else:
-            return 1
 
 
 def main():
