@@ -1,13 +1,17 @@
+from mathutils import Grid
+
+
 class MagnetRule:
 
     def __str__(self):
-        return "_".join(map(str, ["magnet", self._gene, self._mask.name]))
+        return "_".join(map(str, ["magnet", self._gene, self._label]))
 
-    def __init__(self, gene, mask, ideal, goal):
+    def __init__(self, gene, mask, ideal, goal, label):
         self._gene = gene
-        self._mask = mask
+        self._mask = Grid(mask)
         self._ideal = ideal
         self._goal = goal
+        self._label = label
 
     def evaluate(self, genes):
         cluster_result, cluster_count = genes.analyze_cluster({self._gene: [self._mask]})
@@ -39,15 +43,13 @@ class AreaMaxRule:
         return self._area_map
 
     def evaluate(self, genes):
-        areas = self._area_map.masked_sum(genes)
-
-        return max(0, areas[self._gene] - self._maximum)
+        return max(0, genes.each_sum(self._area_map)[self._gene] - self._maximum)
 
     def weigh(self, genes, r, c, gene):
         if gene != self._gene:
             return 1
 
-        current_area = self._area_map.masked_sum(genes)[self._gene]
+        current_area = genes.each_sum(self._area_map)[self._gene]
 
         return (self._maximum - current_area) / self._maximum
 
@@ -67,15 +69,13 @@ class AreaMinRule:
         return self._area_map
 
     def evaluate(self, genes):
-        areas = self._area_map.masked_sum(genes)
-
-        return max(0, self._minimum - areas[self._gene])
+        return max(0, self._minimum - genes.each_sum(self._area_map)[self._gene])
 
     def weigh(self, genes, r, c, gene):
         if gene != self._gene:
             return 1
 
-        current_area = self._area_map.masked_sum(genes)[self._gene]
+        current_area = genes.each_sum(self._area_map)[self._gene]
 
         return 10 if current_area < self._minimum else 1
 

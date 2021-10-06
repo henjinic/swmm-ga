@@ -1,9 +1,9 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from collections import defaultdict
+# from collections import defaultdict
 
-from numpy.core.numeric import ones
-from ga2d import Grid
+# from numpy.core.numeric import ones
+# from ..ga2d import Grid
 from matplotlib.colors import ListedColormap
 
 
@@ -120,7 +120,7 @@ def main():
     pure_original_map[original_map == 16] = 0
     pure_original_map[original_map == 17] = 0
 
-    pure_new_map = np.loadtxt("D:/_swmm_results/2021-09-23_18-44-53/76/0.csv", delimiter=",")
+    pure_new_map = np.loadtxt("D:/_swmm_results/2021-09-23_18-44-53/104/2.csv", delimiter=",")
     pure_new_map[pure_new_map == 13] = 4
     pure_new_map[pure_new_map == 14] = 8
     new_map = pure_new_map.copy()
@@ -188,8 +188,8 @@ def main():
     # mask = ((original_map == 1) | ((4 <= original_map) & (original_map <= 8)))
     # original_map[~mask] = 0
 
-    mask = ((new_map == 1) | ((4 <= new_map) & (new_map <= 8)))
-    new_map[~mask] = 0
+    # mask = ((new_map == 1) | ((4 <= new_map) & (new_map <= 8)))
+    # new_map[~mask] = 0
 
     fig, ax = plt.subplots()
     img = ax.imshow(new_map, cmap=SITE_CMAP, vmin=-1, vmax=17)
