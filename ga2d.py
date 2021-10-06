@@ -214,9 +214,6 @@ class GeneRuler:
             codes = self._codes
 
         target_coords = genes.get_coords(lambda x: mask[x] == 1)
-        # accumulated_areas = self._area_map.masked_sum(genes)
-        # accumulated_areas = genes.each_sum(self._area_map)
-        accumulated_areas = None
 
         while True:
             if not target_coords:
@@ -224,15 +221,14 @@ class GeneRuler:
 
             r, c = randpop(target_coords)
 
-            weights = [self._get_weight_at(genes, r, c, code, accumulated_areas) for code in codes]
+            weights = [self._get_weight_at(genes, r, c, code) for code in codes]
             code = choices(codes, weights)
-            genes, target_coords, accumulated_areas = self._fill_cluster(genes, target_coords, accumulated_areas, r, c, code, mask)
+            genes, target_coords = self._fill_cluster(genes, target_coords, r, c, code, mask)
 
         return genes
 
-    def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
+    def _fill_cluster(self, grid, target_coords, r, c, code, mask):
         grid[r, c] = code
-        # accumulated_areas[code] += self._area_map[r, c]
         current_cluster_size = 1
 
         neighbor_coords = []
@@ -243,12 +239,12 @@ class GeneRuler:
                                                                                    and x not in neighbor_coords)
 
             if not neighbor_coords:
-                return grid, target_coords, accumulated_areas
+                return grid, target_coords
 
             if current_cluster_size >= self._cluster_size:
                 break
 
-            neighbor_weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for r, c in neighbor_coords]
+            neighbor_weights = [self._get_weight_at(grid, r, c, code) for r, c in neighbor_coords]
 
             if sum(neighbor_weights) == 0:
                 break
@@ -257,7 +253,6 @@ class GeneRuler:
             target_coords.remove((r, c))
             grid[r, c] = code
 
-            # accumulated_areas[code] += self._area_map[r, c]
             current_cluster_size += 1
 
         # second phase
@@ -266,7 +261,7 @@ class GeneRuler:
             r, c = randpop(neighbor_coords)
             target_coords.remove((r, c))
 
-            weights = [self._get_weight_at(grid, r, c, code, accumulated_areas) for code in self._codes]
+            weights = [self._get_weight_at(grid, r, c, code) for code in self._codes]
             factored_weights = [weight * 1 if target_code == code else weight for weight, target_code in zip(weights, self._codes)]
             new_code = choices(self._codes, factored_weights)
 
@@ -275,15 +270,14 @@ class GeneRuler:
                 break
 
             grid[r, c] = code
-            # accumulated_areas[code] += self._area_map[r, c]
             neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x]
                                                                                    and mask[x]
                                                                                    and self._target_mask[x]
                                                                                    and x not in neighbor_coords)
 
-        return self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, mask)
+        return self._fill_cluster(grid, target_coords, r, c, code, mask)
 
-    def _get_weight_at(self, grid, r, c, code, accumulated_areas):
+    def _get_weight_at(self, grid, r, c, code):
         if code in self._submasks and self._submasks[code][r, c] == 0:
             return 0
 
