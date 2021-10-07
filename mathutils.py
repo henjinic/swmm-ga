@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from collections import defaultdict
 from copy import deepcopy
 
@@ -19,9 +20,6 @@ class Grid:
         `__init__(height, width, value=0)`\n
         """
 
-        # if isinstance(raw_data, Grid):
-        #     self._raw_grid = raw_data._raw_grid
-        #     self._direction_masks = raw_data._direction_masks
         if raw_data is not None:
             self._raw_grid = raw_data
         else:
@@ -70,10 +68,6 @@ class Grid:
     @property
     def width(self):
         return len(self._raw_grid[0])
-
-    @property
-    def direction_masks(self):
-        return self._direction_masks
 
     def copy(self):
         return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
@@ -125,7 +119,7 @@ class Grid:
             r, c = target_coords.pop(0)
             neighbors += self.traverse_neighbor(r, c,
                                                 lambda x: original_map[x],
-                                                lambda x: original_map[x]
+                                                lambda x: original_map[x] != 0
                                                           and original_map[x] != target_code)
 
             if target_code in masks:
@@ -151,7 +145,10 @@ class Grid:
         else:
             vectors = self._unit_vector_cache[r, c]
 
-        return [action((r + dr, c + dc)) for dr, dc in vectors if 0 <= r + dr < self.height and 0 <= c + dc < self.width and filter((r + dr, c + dc))]
+        return [action((r + dr, c + dc)) for dr, dc in vectors
+                                         if 0 <= r + dr < self.height
+                                            and 0 <= c + dc < self.width
+                                            and filter((r + dr, c + dc))]
 
     def get_diff_coords(self, partner):
         """
@@ -180,18 +177,6 @@ class Grid:
 
     def traverse(self, action, filter):
         return [action((r, c)) for r in range(self.height) for c in range(self.width) if filter((r, c))]
-
-    # def masked_sum(self, mask):
-    #     result = defaultdict(int)
-
-    #     for r in range(self.height):
-    #         for c in range(self.width):
-    #             if not mask[r, c]:
-    #                 continue
-
-    #             result[mask[r, c]] += self[r, c]
-
-    #     return result
 
     def each_sum(self, reference_grid):
         reference_grid = Grid(reference_grid)

@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 
 from ga2d import Chromosome, GeneRuler, GeneticAlgorithm
-from rules import AreaMaxRule, AreaMinRule, AttractionRule, ClusterCountMaxRule, ClusterSizeMinRule, MagnetRule, RepulsionRule
+from rules import AreaMaxRule, AreaMinRule, AttractionRule, ClusterCountMaxRule, MagnetRule, RepulsionRule
 
 
 # mask = Grid(height=50, width=50, value=1)

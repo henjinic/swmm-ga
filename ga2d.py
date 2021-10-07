@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import random
 from operator import attrgetter
 
@@ -5,7 +6,6 @@ from logger import GALogger27
 from mathutils import Grid, lerp
 from randutils import choices, randpop
 from rules import ClusterCountMaxRule
-
 
 
 class Chromosome:
@@ -160,7 +160,7 @@ class GeneRuler:
     CLUSTER_COHESION = 8
     MARGINAL_PENALTY_FACTOR = 2
 
-    def __init__(self, height, width, codes, mask=None):
+    def __init__(self, height, width, codes, mask=None, direction_masks=None):
         self._height = height
         self._width = width
         self._codes = codes
@@ -174,7 +174,7 @@ class GeneRuler:
         self._rules = []
         self._submasks = {}
         self._area_map = Grid(height=height, width=width, value=1)
-        self._direction_masks = None
+        self._direction_masks = direction_masks
 
     @property
     def _cell_count(self):
@@ -189,13 +189,8 @@ class GeneRuler:
     def add_submask(self, code, submask):
         self._submasks[code] = Grid(submask)
 
-    def add_direction_masks(self, direction_masks):
-        self._direction_masks = direction_masks
-
     def evaluate(self, genes):
         result = {}
-
-        # cluster_result, cluster_count = genes.analyze_cluster(self._magnets)
 
         for rule in self._rules:
             result[str(rule)] = rule.evaluate(genes) ** GeneRuler.MARGINAL_PENALTY_FACTOR
@@ -233,9 +228,9 @@ class GeneRuler:
 
         neighbor_coords = []
         while True:
-            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x]
-                                                                                   and mask[x]
-                                                                                   and self._target_mask[x]
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: grid[x] == 0
+                                                                                   and mask[x] == 1
+                                                                                   and self._target_mask[x] == 1
                                                                                    and x not in neighbor_coords)
 
             if not neighbor_coords:
@@ -270,9 +265,9 @@ class GeneRuler:
                 break
 
             grid[r, c] = code
-            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: not grid[x]
-                                                                                   and mask[x]
-                                                                                   and self._target_mask[x]
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: grid[x] == 0
+                                                                                   and mask[x] == 1
+                                                                                   and self._target_mask[x] == 1
                                                                                    and x not in neighbor_coords)
 
         return self._fill_cluster(grid, target_coords, r, c, code, mask)
