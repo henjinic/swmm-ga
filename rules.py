@@ -32,7 +32,7 @@ class MagnetRule:
 class AreaMaxRule:
 
     def __str__(self):
-        return "_".join(map(str, ["area_max", self._gene, self._maximum]))
+        return "_".join(map(str, ["area_max", self._gene, f"{self._maximum:.4f}"]))
 
     def __init__(self, gene, maximum, area_map):
         self._gene = gene
@@ -58,7 +58,7 @@ class AreaMaxRule:
 class AreaMinRule:
 
     def __str__(self):
-        return "_".join(map(str, ["area_min", self._gene, self._minimum]))
+        return "_".join(map(str, ["area_min", self._gene, f"{self._minimum:.4f}"]))
 
     def __init__(self, gene, minimum, area_map):
         self._gene = gene

@@ -5,11 +5,6 @@ from ga2d import Chromosome, GeneticAlgorithm, GeneRuler
 from rules import (AreaMaxRule, AreaMinRule, AttractionRule,
                    ClusterCountMaxRule, MagnetRule, RepulsionRule)
 
-# 3
-from matplotlib import pyplot as plt
-from plotutils import plot_site
-#
-
 
 COMMERCIAL_CORE1 = (13, 52)
 COMMERCIAL_CORE_OFFSET1 = (3, 4)
@@ -37,49 +32,51 @@ def main():
     ruler = GeneRuler(HEIGHT, WIDTH, list(range(1, 16)), mask, direction_masks)
 
     ruler.add_rule(ClusterCountMaxRule(250))
+    ruler.add_rule(AreaMinRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
+    ruler.add_rule(AreaMaxRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
 
-    # # condition 1
-    # ruler.add_submask(TAG_TO_CODE["상업시설1"], commercial_region_mask1)
-    # ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설1"], commercial_core_mask1, 0, 1, "commercial_core1"))
-    # ruler.add_magnet(TAG_TO_CODE["상업시설1"], commercial_core_mask1, 16)
+    ruler.add_rule(AreaMinRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]], area_map))
+    ruler.add_rule(AreaMaxRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]], area_map))
+    ruler.add_rule(AreaMinRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]], area_map))
+    ruler.add_rule(AreaMaxRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]], area_map))
 
-    # ruler.add_submask(TAG_TO_CODE["상업시설2"], commercial_region_mask2)
-    # ruler.add_magnet(TAG_TO_CODE["상업시설2"], commercial_core_mask2, 16)
-    # ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설2"], commercial_core_mask2, 0, 1, "commercial_core2"))
+    # condition 1
+    ruler.add_submask(TAG_TO_CODE["상업시설1"], commercial_region_mask1)
+    ruler.add_submask(TAG_TO_CODE["상업시설2"], commercial_region_mask2)
+    ruler.add_submask(TAG_TO_CODE["업무시설1"], business_region_mask1)
+    ruler.add_submask(TAG_TO_CODE["업무시설2"], business_region_mask2)
 
-    # ruler.add_submask(TAG_TO_CODE["업무시설1"], business_region_mask1)
-    # ruler.add_magnet(TAG_TO_CODE["업무시설1"], business_core_mask1, 16)
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설1"], commercial_core_mask1, 0, 1, "commercial_core1"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설2"], commercial_core_mask2, 0, 1, "commercial_core2"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["업무시설1"], business_core_mask1, 0, 1, "business_core1"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["업무시설2"], business_core_mask2, 0, 1, "business_core2"))
 
-    # ruler.add_submask(TAG_TO_CODE["업무시설2"], business_region_mask2)
-    # ruler.add_magnet(TAG_TO_CODE["업무시설2"], business_core_mask2, 16)
+    # condition 2
+    ruler.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)
 
-    # # condition 2
-    # ruler.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)
+    # condition 3
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설1"], big_road_mask, 0, 1, "big_road"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설2"], big_road_mask, 0, 1, "big_road"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["업무시설1"], big_road_mask, 0, 1, "big_road"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["업무시설2"], big_road_mask, 0, 1, "big_road"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["유보형복합용지"], big_road_mask, 0, 1, "big_road"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["자족복합용지"], big_road_mask, 0, 1, "big_road"))
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["자족시설"], big_road_mask, 0, 1, "big_road"))
 
-    # # condition 3
-    # ruler.add_magnet(TAG_TO_CODE["상업시설1"], big_road_mask, 4)
-    # ruler.add_magnet(TAG_TO_CODE["상업시설2"], big_road_mask, 4)
-    # ruler.add_magnet(TAG_TO_CODE["업무시설1"], big_road_mask, 4)
-    # ruler.add_magnet(TAG_TO_CODE["업무시설2"], big_road_mask, 4)
-    # ruler.add_magnet(TAG_TO_CODE["유보형복합용지"], big_road_mask, 4)
-    # ruler.add_magnet(TAG_TO_CODE["자족복합용지"], big_road_mask, 4)
-    # ruler.add_magnet(TAG_TO_CODE["자족시설"], big_road_mask, 4)
+    # condition 4 & 5
+    ruler.add_rule(MagnetRule(TAG_TO_CODE["녹지"], neargreen_mask, 0, 1, "school_community"))
+    ruler.add_rule(AttractionRule(TAG_TO_CODE["공원"], TAG_TO_CODE["녹지"], 0, 1))
+    ruler.add_rule(AttractionRule(TAG_TO_CODE["공공공지"], TAG_TO_CODE["녹지"], 0, 1))
+    ruler.add_rule(AttractionRule(TAG_TO_CODE["보행자전용도로"], TAG_TO_CODE["녹지"], 0, 1))
 
-    # # condition 4 & 5
-    # ruler.add_magnet(TAG_TO_CODE["녹지"], neargreen_mask, 4)
-    # ruler.add_attraction_rule(TAG_TO_CODE["공원"], TAG_TO_CODE["녹지"])
-    # ruler.add_attraction_rule(TAG_TO_CODE["공공공지"], TAG_TO_CODE["녹지"])
-    # ruler.add_attraction_rule(TAG_TO_CODE["보행자전용도로"], TAG_TO_CODE["녹지"])
-
-    # # condition 6
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설1"])
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설2"])
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설1"])
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설2"])
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["유보형복합용지"])
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"])
-    # ruler.add_repulsion_rule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"])
-
+    # condition 6
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설1"], 0, 1))
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["상업시설2"], 0, 1))
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설1"], 0, 1))
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["업무시설2"], 0, 1))
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["유보형복합용지"], 0, 1))
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"], 0, 1))
+    ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"], 0, 1))
 
     parent1 = Chromosome(ruler.generate(), ruler)
     parent2 = Chromosome(ruler.generate(), ruler)
@@ -90,7 +87,27 @@ def main():
     print(child1.cost_detail)
     print(child2.cost_detail)
 
-    plt.set_cmap("rainbow")
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap
+    site_cmap = ListedColormap([
+        "black",
+        "orange",
+        "chocolate",
+        "wheat",
+        "red",
+        "lightsalmon",
+        "palevioletred",
+        "mediumslateblue",
+        "blue",
+        "lime",
+        "palegreen",
+        "olive",
+        "green",
+        "red",
+        "blue",
+        "pink"
+        ])
+    plt.rc('image', cmap=site_cmap)
     plt.subplot(141)
     plt.imshow(parent1.genes.raw)
     plt.subplot(142)
@@ -100,34 +117,6 @@ def main():
     plt.subplot(144)
     plt.imshow(child2.genes.raw)
     plt.show()
-
-
-
-    # sites = []
-    # for _ in range(2):
-    #     chromosome = Chromosome(ruler.generate(), ruler)
-
-    #     print("the number of clusters:", chromosome.genes.analyze_cluster()[1])
-    #     # ruler.evaluate(chromosome.genes)
-    #     print("total cost:", chromosome.cost)
-    #     print(chromosome.cost_detail)
-    #     sites.append(chromosome.genes.raw)
-
-    # plot_site(*sites)
-
-
-    # grid1 = ruler.generate()
-    # grid2 = ruler.generate()
-
-    # parent1 = Chromosome(grid1, ruler)
-    # parent2 = Chromosome(grid2, ruler)
-    # child1, child2 = parent1.crossover(parent2)
-    # print(child1.genes.direction_masks)
-    # print(*[x.genes.analyze_cluster()[1] for x in [parent1, parent2, child1, child2]])
-    # print(*[x.cost for x in [parent1, parent2, child1, child2]])
-    # print(*[x._costs for x in [parent1, parent2, child1, child2]])
-
-    # plot_site(parent1.genes.raw, parent2.genes.raw, child1.genes.raw, child2.genes.raw)
 
 
     # ga = GeneticAlgorithm(ruler)

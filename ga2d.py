@@ -182,7 +182,7 @@ class GeneRuler:
 
     def add_rule(self, rule):
         if isinstance(rule, ClusterCountMaxRule):
-            self._cluster_size = self._cell_count // rule.maximum
+            self._cluster_size = self._cell_count // (rule.maximum * 0.75)
 
         self._rules.append(rule)
 
