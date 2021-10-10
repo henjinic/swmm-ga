@@ -73,7 +73,7 @@ class Grid:
         return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
     def get_coords(self, filter):
-        return [(r, c) for r in range(self.height) for c in range(self.width) if filter((r, c))]
+        return [(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
 
     def analyze_cluster(self, masks=None):
         """
@@ -118,9 +118,9 @@ class Grid:
         while target_coords:
             r, c = target_coords.pop(0)
             neighbors += self.traverse_neighbor(r, c,
-                                                lambda x: original_map[x],
-                                                lambda x: original_map[x] != 0
-                                                          and original_map[x] != target_code)
+                                                lambda r, c: original_map[r, c],
+                                                lambda r, c: original_map[r, c] != 0
+                                                             and original_map[r, c] != target_code)
 
             if target_code in masks:
                 for i, mask in enumerate(masks[target_code]):
@@ -132,23 +132,25 @@ class Grid:
             self[r, c] = 0
             count += 1
 
-            target_coords += self.traverse_neighbor(r, c, lambda x: x, lambda x: self[x] == target_code and x not in target_coords)
+            target_coords += self.traverse_neighbor(r, c, lambda r, c: (r, c),
+                                                          lambda r, c: self[r, c] == target_code
+                                                                       and (r, c) not in target_coords)
 
         return target_code, count, list(set(neighbors)), is_near_mask
 
     def count_neighbor(self, r, c, targets):
-        return sum(self.traverse_neighbor(r, c, lambda x: 1, lambda x: self[x] in targets))
+        return sum(self.traverse_neighbor(r, c, lambda r, c: 1, lambda r, c: self[r, c] in targets))
 
-    def traverse_neighbor(self, r, c, action, filter=lambda: True):
+    def traverse_neighbor(self, r, c, action, filter=lambda r, c: True):
         if self._direction_masks is None:
             vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
         else:
             vectors = self._unit_vector_cache[r, c]
 
-        return [action((r + dr, c + dc)) for dr, dc in vectors
-                                         if 0 <= r + dr < self.height
-                                            and 0 <= c + dc < self.width
-                                            and filter((r + dr, c + dc))]
+        return [action(r + dr, c + dc) for dr, dc in vectors
+                                       if 0 <= r + dr < self.height
+                                          and 0 <= c + dc < self.width
+                                          and filter(r + dr, c + dc)]
 
     def get_diff_coords(self, partner):
         """
@@ -173,10 +175,10 @@ class Grid:
         return result
 
     def sum(self):
-        return sum(self.traverse(lambda x: self[x], lambda x: True))
+        return sum(self.traverse(lambda r, c: self[r, c], lambda r, c: True))
 
     def traverse(self, action, filter):
-        return [action((r, c)) for r in range(self.height) for c in range(self.width) if filter((r, c))]
+        return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
 
     def each_sum(self, reference_grid):
         reference_grid = Grid(reference_grid)
@@ -193,8 +195,32 @@ class Grid:
 
 
 def main():
-    for i in lerp(0, 10, 5):
-        print(i)
+    from pprint import pp
+
+    print("---- lerp ----")
+    print([x for x in lerp(0, 10, 5)])
+    print([x for x in lerp(10, 0, 5)])
+    print()
+
+    print("---- Grid ----")
+    grid = Grid([
+        [0, 1, 1, 3],
+        [3, 4, 2, 2],
+        [1, 3, 3, 2],
+        [1, 1, 3, 0],
+        ])
+    pp(grid.analyze_cluster(), sort_dicts=True)
+    print(grid.get_coords(lambda r, c: grid[r, c] == 1))
+    print(grid.count_neighbor(1, 1, [2, 3]))
+    print(grid.traverse_neighbor(1, 1, lambda r, c: grid[r, c] ** 2))
+    print(grid.sum())
+    print(grid.traverse(lambda r, c: (r, c), lambda r, c: grid[r, c] == 1))
+    pp(grid.each_sum([
+        [1, 1, 1, 1],
+        [5, 5, 5, 5],
+        [1, 1, 1, 1],
+        [1, 1, 1, 1],
+        ]), width=1, sort_dicts=True)
 
 
 if __name__ == "__main__":

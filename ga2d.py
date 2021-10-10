@@ -208,7 +208,7 @@ class GeneRuler:
         if codes is None:
             codes = self._codes
 
-        target_coords = genes.get_coords(lambda x: mask[x] == 1)
+        target_coords = genes.get_coords(lambda r, c: mask[r, c] == 1)
 
         while True:
             if not target_coords:
@@ -228,10 +228,11 @@ class GeneRuler:
 
         neighbor_coords = []
         while True:
-            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: grid[x] == 0
-                                                                                   and mask[x] == 1
-                                                                                   and self._target_mask[x] == 1
-                                                                                   and x not in neighbor_coords)
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda r, c: (r, c),
+                                                            lambda r, c: grid[r, c] == 0
+                                                                         and mask[r, c] == 1
+                                                                         and self._target_mask[r, c] == 1
+                                                                         and (r, c) not in neighbor_coords)
 
             if not neighbor_coords:
                 return grid, target_coords
@@ -265,10 +266,11 @@ class GeneRuler:
                 break
 
             grid[r, c] = code
-            neighbor_coords += grid.traverse_neighbor(r, c, lambda x: x, lambda x: grid[x] == 0
-                                                                                   and mask[x] == 1
-                                                                                   and self._target_mask[x] == 1
-                                                                                   and x not in neighbor_coords)
+            neighbor_coords += grid.traverse_neighbor(r, c, lambda r, c: (r, c),
+                                                            lambda r, c: grid[r, c] == 0
+                                                                         and mask[r, c] == 1
+                                                                         and self._target_mask[r, c] == 1
+                                                                         and (r, c) not in neighbor_coords)
 
         return self._fill_cluster(grid, target_coords, r, c, code, mask)
 
