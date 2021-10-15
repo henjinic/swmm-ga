@@ -21,27 +21,29 @@ class Grid:
         """
 
         if raw_data is not None:
-            self._raw_grid = raw_data
+            if isinstance(raw_data, Grid):
+                self._raw_grid = deepcopy(raw_data.raw)
+            else:
+                self._raw_grid = deepcopy(raw_data)
         else:
             self._raw_grid = [[value] * width for _ in range(height)]
 
-        self._direction_masks = direction_masks
+        if direction_masks is None and isinstance(raw_data, Grid):
+            self._direction_masks = raw_data._direction_masks
+        else:
+            self._direction_masks = direction_masks
 
         if direction_masks is not None:
             self._unit_vector_cache = defaultdict(list)
 
             for r in range(self.height):
                 for c in range(self.width):
-
                     if self._direction_masks["up"][r][c]:
                         self._unit_vector_cache[r, c].append((-1, 0))
-
                     if self._direction_masks["down"][r][c]:
                         self._unit_vector_cache[r, c].append((1, 0))
-
                     if self._direction_masks["left"][r][c]:
                         self._unit_vector_cache[r, c].append((0, -1))
-
                     if self._direction_masks["right"][r][c]:
                         self._unit_vector_cache[r, c].append((0, 1))
 
@@ -110,6 +112,7 @@ class Grid:
         target_coords = [(r, c)]
         count = 0
         neighbors = []
+
         if target_code in masks:
             is_near_mask = [False] * len(masks[target_code])
         else:
@@ -181,7 +184,6 @@ class Grid:
         return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
 
     def each_sum(self, reference_grid):
-        reference_grid = Grid(reference_grid)
         result = defaultdict(int)
 
         for r in range(self.height):
@@ -189,9 +191,12 @@ class Grid:
                 if self[r, c] == 0:
                     continue
 
-                result[self[r, c]] += reference_grid[r, c]
+                result[self[r, c]] += reference_grid[r][c]
 
         return result
+
+    def filtered_sum(self, filter, reference_grid):
+        return sum(self.traverse(lambda r, c: reference_grid[r][c], filter))
 
 
 def main():

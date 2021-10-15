@@ -29,16 +29,16 @@ def main():
     business_core_mask1, business_region_mask1 = create_core_region_data(BUSINESS_CORE1, BUSINESS_CORE_OFFSET1)
     business_core_mask2, business_region_mask2 = create_core_region_data(BUSINESS_CORE2, BUSINESS_CORE_OFFSET2)
 
-    ruler = GeneRuler(HEIGHT, WIDTH, list(range(1, 16)), mask, direction_masks)
+    ruler = GeneRuler(HEIGHT, WIDTH, list(range(1, 16)), mask, direction_masks, area_map)
 
     ruler.add_rule(ClusterCountMaxRule(250))
-    ruler.add_rule(AreaMinRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
-    ruler.add_rule(AreaMaxRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
+    ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
+    ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
 
-    ruler.add_rule(AreaMinRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]], area_map))
-    ruler.add_rule(AreaMaxRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]], area_map))
-    ruler.add_rule(AreaMinRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]], area_map))
-    ruler.add_rule(AreaMaxRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]], area_map))
+    ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]], area_map))
+    ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]], area_map))
+    ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]], area_map))
+    ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]], area_map))
 
     # condition 1
     ruler.add_submask(TAG_TO_CODE["상업시설1"], commercial_region_mask1)
@@ -87,6 +87,14 @@ def main():
     print(child1.cost_detail)
     print(child2.cost_detail)
 
+
+    # ga = GeneticAlgorithm(ruler)
+    # # best = ga.run(size=8, strategy="cost", child_count=2, mutation_rate=0.9, stable_step_for_exit=2, is_logging=False)
+    # best = ga.run(size=8, strategy="age", elitism=2, mutation_rate=0.9, stable_step_for_exit=2, is_logging=False)
+    # print("the number of clusters:", best.genes.analyze_cluster()[1])
+    # print("best chromosome details", best.cost_detail)
+
+
     import matplotlib.pyplot as plt
     from matplotlib.colors import ListedColormap
     site_cmap = ListedColormap([
@@ -107,7 +115,10 @@ def main():
         "blue",
         "pink"
         ])
-    plt.rc('image', cmap=site_cmap)
+    plt.rc("image", cmap=site_cmap)
+
+    # plt.imshow(best.genes.raw)
+
     plt.subplot(141)
     plt.imshow(parent1.genes.raw)
     plt.subplot(142)
@@ -119,12 +130,6 @@ def main():
     plt.show()
 
 
-    # ga = GeneticAlgorithm(ruler)
-    # best = ga.run(size=2, strategy="cost", child_count=2, mutation_rate=0.9, stable_step_for_exit=2, is_logging=False)
-    # # best = ga.age_based_run(size=4, elitism=2, mutation_rate=0.9, stable_step_for_exit=1)
-    # print("the number of clusters:", best.genes.analyze_cluster()[1])
-    # print("best chromosome details", best.cost_detail)
-    # plot_site(best.genes.raw)
 
 
 if __name__ == "__main__":
