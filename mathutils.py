@@ -74,8 +74,8 @@ class Grid:
     def copy(self):
         return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
-    def get_coords(self, filter):
-        return [(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
+    # def get_coords(self, filter):
+    #     return [(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
 
     def analyze_cluster(self, masks=None):
         """
@@ -177,26 +177,23 @@ class Grid:
 
         return result
 
-    def sum(self):
-        return sum(self.traverse(lambda r, c: self[r, c], lambda r, c: True))
+    # def sum(self):
+    #     return sum(self.traverse(lambda r, c: self[r, c], lambda r, c: True))
 
     def traverse(self, action, filter):
         return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
 
-    def each_sum(self, reference_grid):
-        result = defaultdict(int)
+    # def each_sum(self, reference_grid):
+    #     result = defaultdict(int)
 
-        for r in range(self.height):
-            for c in range(self.width):
-                if self[r, c] == 0:
-                    continue
+    #     for r in range(self.height):
+    #         for c in range(self.width):
+    #             if self[r, c] == 0:
+    #                 continue
 
-                result[self[r, c]] += reference_grid[r][c]
+    #             result[self[r, c]] += reference_grid[r][c]
 
-        return result
-
-    def filtered_sum(self, filter, reference_grid):
-        return sum(self.traverse(lambda r, c: reference_grid[r][c], filter))
+    #     return result
 
 
 def main():

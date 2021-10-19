@@ -2,6 +2,7 @@
 import random
 from operator import attrgetter
 
+from gridutils import grid_sum, labeled_sum
 from logger import GALogger27
 from mathutils import Grid, lerp
 from randutils import choices, randpop
@@ -184,7 +185,8 @@ class GeneRuler:
 
     @property
     def _cell_count(self):
-        return self._target_mask.sum()
+        return grid_sum(self._target_mask.raw)
+        # return self._target_mask.sum()
 
     def add_rule(self, rule):
         if isinstance(rule, ClusterCountMaxRule):
@@ -217,8 +219,12 @@ class GeneRuler:
         if codes is None:
             codes = self._codes
 
-        target_coords = genes.get_coords(lambda r, c: mask[r, c] == 1)
-        accumulated_areas = genes.each_sum(self._area_map)
+        # target_coords = genes.get_coords(lambda r, c: mask[r, c] == 1)
+        target_coords = [(r, c) for r in range(len(mask.raw))
+                                for c in range(len(mask.raw[0]))
+                                if mask.raw[r][c] != 0]
+        # accumulated_areas = genes.each_sum(self._area_map)
+        accumulated_areas = labeled_sum(genes.raw, self._area_map)
 
         while True:
             if not target_coords:

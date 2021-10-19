@@ -13,8 +13,8 @@ ruler.add_submask(5, [[1 if r > 25 and c > 25 else 0 for c in range(50)] for r i
 ruler.add_rule(AttractionRule(from_gene=1, to_gene=2, ideal=0, goal=1))
 ruler.add_rule(RepulsionRule(gene1=3, gene2=4, ideal=0, goal=1))
 ruler.add_rule(ClusterCountMaxRule(maximum=100))
-ruler.add_rule(AreaMaxRule(gene=2, maximum=10, area_map=[[1] * 50 for _ in range(50)]))
-ruler.add_rule(AreaMinRule(gene=2, minimum=4, area_map=[[1] * 50 for _ in range(50)]))
+ruler.add_area_rule(AreaMaxRule(gene=2, maximum=10, area_map=[[1] * 50 for _ in range(50)]))
+ruler.add_area_rule(AreaMinRule(gene=2, minimum=4, area_map=[[1] * 50 for _ in range(50)]))
 magnet = [[0] * 50 for _ in range(50)]
 for i in range(50):
     magnet[i][30] = 1

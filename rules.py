@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from gridutils import labeled_sum
 from mathutils import Grid
 
 
@@ -39,20 +40,13 @@ class AreaMaxRule:
         self._area_map = area_map
         self._maximum = maximum
 
-    # @property
-    # def area_map(self):
-    #     return self._area_map
-
     def evaluate(self, genes):
-        return max(0, genes.each_sum(self._area_map)[self._gene] - self._maximum)
+        # return max(0, genes.each_sum(self._area_map)[self._gene] - self._maximum)
+        return max(0, labeled_sum(genes.raw, self._area_map)[self._gene] - self._maximum)
 
     def weigh(self, genes, r, c, gene, accumulated_areas):
         if gene != self._gene:
             return 1
-
-        # current_area = genes.filtered_sum(lambda r, c: genes[r, c] == gene, self._area_map)
-
-        # current_area = genes.each_sum(self._area_map)[self._gene]
 
         return (self._maximum - accumulated_areas[gene]) / self._maximum
 
@@ -67,18 +61,13 @@ class AreaMinRule:
         self._area_map = area_map
         self._minimum = minimum
 
-    # @property
-    # def area_map(self):
-    #     return self._area_map
-
     def evaluate(self, genes):
-        return max(0, self._minimum - genes.each_sum(self._area_map)[self._gene])
+        # return max(0, self._minimum - genes.each_sum(self._area_map)[self._gene])
+        return max(0, self._minimum - labeled_sum(genes.raw, self._area_map)[self._gene])
 
     def weigh(self, genes, r, c, gene, accumulated_areas):
         if gene != self._gene:
             return 1
-        # current_area = genes.filtered_sum(lambda r, c: genes[r, c] == gene, self._area_map)
-        # current_area = genes.each_sum(self._area_map)[self._gene]
 
         return 10 if accumulated_areas[gene] < self._minimum else 1
 
