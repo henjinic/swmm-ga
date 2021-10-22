@@ -91,33 +91,31 @@ def main():
     ga = GeneticAlgorithm(ruler)
     # best = ga.run(size=8, strategy="cost", child_count=2, mutation_rate=0.9, stable_step_for_exit=2, is_logging=False)
     best = ga.run(size=8, strategy="age", elitism=2, mutation_rate=0.9, stable_step_for_exit=2, is_logging=False)
-    print("the number of clusters:", best.genes.analyze_cluster()[1])
     print("best chromosome details", best.cost_detail)
 
 
-    # import matplotlib.pyplot as plt
-    # from matplotlib.colors import ListedColormap
-    # site_cmap = ListedColormap([
-    #     "black",
-    #     "orange",
-    #     "chocolate",
-    #     "wheat",
-    #     "red",
-    #     "lightsalmon",
-    #     "palevioletred",
-    #     "mediumslateblue",
-    #     "blue",
-    #     "lime",
-    #     "palegreen",
-    #     "olive",
-    #     "green",
-    #     "red",
-    #     "blue",
-    #     "pink"
-    #     ])
-    # plt.rc("image", cmap=site_cmap)
-
-    # plt.imshow(best.genes.raw)
+    import matplotlib.pyplot as plt
+    from matplotlib.colors import ListedColormap
+    site_cmap = ListedColormap([
+        "black",
+        "orange",
+        "chocolate",
+        "wheat",
+        "red",
+        "lightsalmon",
+        "palevioletred",
+        "mediumslateblue",
+        "blue",
+        "lime",
+        "palegreen",
+        "olive",
+        "green",
+        "red",
+        "blue",
+        "pink"
+        ])
+    plt.rc("image", cmap=site_cmap)
+    plt.imshow(best.genes.raw)
 
     # plt.subplot(141)
     # plt.imshow(parent1.genes.raw)
@@ -127,7 +125,7 @@ def main():
     # plt.imshow(child1.genes.raw)
     # plt.subplot(144)
     # plt.imshow(child2.genes.raw)
-    # plt.show()
+    plt.show()
 
 
 

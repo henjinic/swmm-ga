@@ -74,87 +74,20 @@ class Grid:
     def copy(self):
         return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
-    # def analyze_cluster(self, masks=None):
-    #     """
-    #     ```
-    #     return: (
-    #         defaultdict {code: [size of each cluster]},
-    #         the number of clusters
-    #     )
-    #     ```
-    #     """
-    #     if masks is None:
-    #         masks = {}
-    #         result = defaultdict(lambda : dict(sizes=[], neighbors=[]))
+    # def traverse_neighbor(self, r, c, action, filter=lambda r, c: True):
+    #     if self._direction_masks is None:
+    #         vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
     #     else:
-    #         result = defaultdict(lambda : dict(sizes=[], neighbors=[], is_near_mask=[]))
+    #         vectors = self._unit_vector_cache[r, c]
 
-    #     check_grid = self.copy()
-
-    #     for r in range(self.height):
-    #         for c in range(self.width):
-    #             if check_grid[r, c] == 0:
-    #                 continue
-
-    #             code, count, neighbors, is_near_mask = check_grid._fill_zeros_in_cluster(r, c, self, masks)
-    #             result[code]["sizes"].append(count)
-    #             result[code]["neighbors"].append(neighbors)
-    #             if code in masks:
-    #                 result[code]["is_near_mask"].append(is_near_mask)
-
-    #     return result, sum(len(result[code]["sizes"]) for code in result)
-
-    # def _fill_zeros_in_cluster(self, r, c, original_map, masks):
-    #     target_code = self[r, c]
-    #     target_coords = [(r, c)]
-    #     count = 0
-    #     neighbors = []
-
-    #     if target_code in masks:
-    #         is_near_mask = [False] * len(masks[target_code])
-    #     else:
-    #         is_near_mask = None
-
-    #     while target_coords:
-    #         r, c = target_coords.pop(0)
-    #         neighbors += self.traverse_neighbor(r, c,
-    #                                             lambda r, c: original_map[r, c],
-    #                                             lambda r, c: original_map[r, c] != 0
-    #                                                          and original_map[r, c] != target_code)
-
-    #         if target_code in masks:
-    #             for i, mask in enumerate(masks[target_code]):
-    #                 if is_near_mask[i]:
-    #                     continue
-
-    #                 is_near_mask[i] = bool(mask.count_neighbor(r, c, [1]))
-
-    #         self[r, c] = 0
-    #         count += 1
-
-    #         target_coords += self.traverse_neighbor(r, c, lambda r, c: (r, c),
-    #                                                       lambda r, c: self[r, c] == target_code
-    #                                                                    and (r, c) not in target_coords)
-
-    #     return target_code, count, list(set(neighbors)), is_near_mask
-
-    # def count_neighbor(self, r, c, targets):
-    #     return sum(self.traverse_neighbor(r, c, lambda r, c: 1, lambda r, c: self[r, c] in targets))
-
-    def traverse_neighbor(self, r, c, action, filter=lambda r, c: True):
-        if self._direction_masks is None:
-            vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
-        else:
-            vectors = self._unit_vector_cache[r, c]
-
-        return [action(r + dr, c + dc) for dr, dc in vectors
-                                       if 0 <= r + dr < self.height
-                                          and 0 <= c + dc < self.width
-                                          and filter(r + dr, c + dc)]
+    #     return [action(r + dr, c + dc) for dr, dc in vectors
+    #                                    if 0 <= r + dr < self.height
+    #                                       and 0 <= c + dc < self.width
+    #                                       and filter(r + dr, c + dc)]
 
 
-    def traverse(self, action, filter):
-        return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
+    # def traverse(self, action, filter):
+    #     return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
 
 
 def main():

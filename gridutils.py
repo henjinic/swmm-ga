@@ -67,7 +67,7 @@ def _fill_zeros_in_cluster(check_grid, r, c, target, grid):
     while target_coords:
         r, c = target_coords.pop()
         check_grid[r][c] = 0
-        target_coords |= _get_neighbor_coords_include(check_grid, r, c, [target])
+        target_coords |= get_neighbor_coords_include(check_grid, r, c, [target])
         count += 1
         neighbor_coords |= _get_neighbor_coords_exclude(grid, r, c, [target])
     return {"count": count, "neighbor_coords": list(neighbor_coords)}
@@ -79,7 +79,7 @@ def _get_neighbor_coords_exclude(grid, r, c, exclusions):
     return {(r, c) for r, c in coords if is_in(grid, r, c) and grid[r][c] not in exclusions}
 
 
-def _get_neighbor_coords_include(grid, r, c, inclusions):
+def get_neighbor_coords_include(grid, r, c, inclusions):
     vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
     coords = [(r + dr, c + dc) for dr, dc in vectors]
     return {(r, c) for r, c in coords if is_in(grid, r, c) and grid[r][c] in inclusions}
