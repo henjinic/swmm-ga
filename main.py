@@ -115,7 +115,7 @@ def main():
         "pink"
         ])
     plt.rc("image", cmap=site_cmap)
-    plt.imshow(best.genes.raw)
+    plt.imshow(best.genes)
 
     # plt.subplot(141)
     # plt.imshow(parent1.genes.raw)

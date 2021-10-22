@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import random
+from copy import deepcopy
 from operator import attrgetter
 
 from gridutils import (count_neighbor, get_diff_coords, get_neighbor_coords_include,
-                       grid_sum, labeled_sum)
+                       grid_sum, labeled_sum, ones, zeros)
 from logger import GALogger27
-from mathutils import Grid, lerp
+from mathutils import lerp
 from randutils import choices, randpop
 from rules import ClusterCountMaxRule
 
@@ -14,6 +15,8 @@ class Chromosome:
 
     def __init__(self, genes, gene_ruler):
         self._genes = genes
+        self._height = len(genes)
+        self._width = len(genes[0])
         self._gene_ruler = gene_ruler
         self._costs = None
 
@@ -32,17 +35,20 @@ class Chromosome:
         return self._costs
 
     def crossover(self, partner):
-        child_genes1 = self._genes.copy()
-        child_genes2 = self._genes.copy()
+        # child_genes1 = self._genes.copy()
+        child_genes1 = deepcopy(self._genes)
+        # child_genes2 = self._genes.copy()
+        child_genes2 = deepcopy(self._genes)
 
-        diff_coords = get_diff_coords(self._genes.raw, partner._genes.raw)
+        diff_coords = get_diff_coords(self._genes, partner._genes)
 
         for (gene1, gene2), coords in diff_coords.items():
-            mask = Grid(height=self.genes.height, width=self.genes.width)
+            # mask = Grid(height=self.genes.height, width=self.genes.width)
+            mask = zeros(self._height, self._width)
             for r, c in coords:
-                mask[r, c] = 1
-                child_genes1[r, c] = 0
-                child_genes2[r, c] = 0
+                mask[r][c] = 1
+                child_genes1[r][c] = 0
+                child_genes2[r][c] = 0
 
             self._gene_ruler.fill(child_genes1, mask, [gene1, gene2])
             self._gene_ruler.fill(child_genes2, mask, [gene1, gene2])
@@ -50,17 +56,18 @@ class Chromosome:
         return Chromosome(child_genes1, self._gene_ruler), Chromosome(child_genes2, self._gene_ruler)
 
     def mutate(self):
-        region_height = self.genes.height // 5
-        region_width = self.genes.width // 5
-        r_start = random.randint(0, self.genes.height - region_height)
-        c_start = random.randint(0, self.genes.width - region_width)
+        region_height = self._height // 5
+        region_width = self._width // 5
+        r_start = random.randint(0, self._height - region_height)
+        c_start = random.randint(0, self._width - region_width)
 
-        region_mask = Grid(height=self.genes.height, width=self.genes.width)
+        # region_mask = Grid(height=self.genes.height, width=self.genes.width)
+        region_mask = zeros(self._height, self._width)
 
         for r in range(r_start, r_start + region_height):
             for c in range(c_start, c_start + region_width):
-                region_mask[r, c] = 1
-                self.genes[r, c] = 0
+                region_mask[r][c] = 1
+                self.genes[r][c] = 0
 
         self._gene_ruler.fill(self.genes, region_mask)
         self._cost = None
@@ -168,9 +175,11 @@ class GeneRuler:
         self._codes = codes
 
         if mask is None:
-            self._target_mask = Grid(height=height, width=width, value=1)
+            # self._target_mask = Grid(height=height, width=width, value=1)
+            self._target_mask = ones(height, width)
         else:
-            self._target_mask = Grid(mask)
+            # self._target_mask = Grid(mask)
+            self._target_mask = mask
 
         self._cluster_size = 1
         self._rules = []
@@ -179,13 +188,13 @@ class GeneRuler:
         self._direction_masks = direction_masks
 
         if area_map is None:
-            self._area_map = [[1] * width for _ in range(height)]
+            self._area_map = ones(height, width)
         else:
             self._area_map = area_map
 
     @property
     def _cell_count(self):
-        return grid_sum(self._target_mask.raw)
+        return grid_sum(self._target_mask)
 
     def add_rule(self, rule):
         if isinstance(rule, ClusterCountMaxRule):
@@ -197,7 +206,8 @@ class GeneRuler:
         self._area_rules.append(rule)
 
     def add_submask(self, code, submask):
-        self._submasks[code] = Grid(submask)
+        # self._submasks[code] = Grid(submask)
+        self._submasks[code] = submask
 
     def evaluate(self, genes):
         result = {}
@@ -210,7 +220,8 @@ class GeneRuler:
         return result
 
     def generate(self):
-        grid = Grid(height=self._height, width=self._width, direction_masks=self._direction_masks)
+        # grid = Grid(height=self._height, width=self._width, direction_masks=self._direction_masks)
+        grid = zeros(self._height, self._width)
 
         return self.fill(grid, self._target_mask, self._codes)
 
@@ -218,10 +229,10 @@ class GeneRuler:
         if codes is None:
             codes = self._codes
 
-        target_coords = [(r, c) for r in range(len(mask.raw))
-                                for c in range(len(mask.raw[0]))
-                                if mask.raw[r][c] != 0]
-        accumulated_areas = labeled_sum(genes.raw, self._area_map)
+        target_coords = [(r, c) for r in range(len(mask))
+                                for c in range(len(mask[0]))
+                                if mask[r][c] != 0]
+        accumulated_areas = labeled_sum(genes, self._area_map)
 
         while True:
             if not target_coords:
@@ -236,21 +247,16 @@ class GeneRuler:
         return genes
 
     def _fill_cluster(self, grid, target_coords, accumulated_areas, r, c, code, mask):
-        grid[r, c] = code
+        grid[r][c] = code
         accumulated_areas[code] += self._area_map[r][c]
         current_cluster_size = 1
 
         neighbor_coords = []
         while True:
-            neighbor_coords += [(r, c) for r, c in get_neighbor_coords_include(grid.raw, r, c, [0])
-                                       if mask.raw[r][c] == 1
-                                          and self._target_mask.raw[r][c] == 1
+            neighbor_coords += [(r, c) for r, c in get_neighbor_coords_include(grid, r, c, [0])
+                                       if mask[r][c] == 1
+                                          and self._target_mask[r][c] == 1
                                           and (r, c) not in neighbor_coords]
-            # neighbor_coords += grid.traverse_neighbor(r, c, lambda r, c: (r, c),
-            #                                                 lambda r, c: grid[r, c] == 0
-            #                                                              and mask[r, c] == 1
-            #                                                              and self._target_mask[r, c] == 1
-            #                                                              and (r, c) not in neighbor_coords)
 
             if not neighbor_coords:
                 return grid, target_coords, accumulated_areas
@@ -265,7 +271,7 @@ class GeneRuler:
 
             r, c = randpop(neighbor_coords, neighbor_weights)
             target_coords.remove((r, c))
-            grid[r, c] = code
+            grid[r][c] = code
             accumulated_areas[code] += self._area_map[r][c]
             current_cluster_size += 1
 
@@ -283,25 +289,20 @@ class GeneRuler:
                 code = new_code
                 break
 
-            grid[r, c] = code
+            grid[r][c] = code
             accumulated_areas[code] += self._area_map[r][c]
-            neighbor_coords += [(r, c) for r, c in get_neighbor_coords_include(grid.raw, r, c, [0])
-                                       if mask.raw[r][c] == 1
-                                          and self._target_mask.raw[r][c] == 1
+            neighbor_coords += [(r, c) for r, c in get_neighbor_coords_include(grid, r, c, [0])
+                                       if mask[r][c] == 1
+                                          and self._target_mask[r][c] == 1
                                           and (r, c) not in neighbor_coords]
-            # neighbor_coords += grid.traverse_neighbor(r, c, lambda r, c: (r, c),
-            #                                                 lambda r, c: grid[r, c] == 0
-            #                                                              and mask[r, c] == 1
-            #                                                              and self._target_mask[r, c] == 1
-            #                                                              and (r, c) not in neighbor_coords)
 
         return self._fill_cluster(grid, target_coords, accumulated_areas, r, c, code, mask)
 
     def _get_weight_at(self, grid, r, c, code, accumulated_areas):
-        if code in self._submasks and self._submasks[code][r, c] == 0:
+        if code in self._submasks and self._submasks[code][r][c] == 0:
             return 0
 
-        weight = self.CLUSTER_COHESION ** count_neighbor(grid.raw, r, c, [code])
+        weight = self.CLUSTER_COHESION ** count_neighbor(grid, r, c, [code])
 
         for rule in self._rules:
             weight *= rule.weigh(grid, r, c, code)

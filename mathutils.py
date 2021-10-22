@@ -12,82 +12,67 @@ def lerp(start, end, size):
     yield end
 
 
-class Grid:
+# class Grid:
 
-    def __init__(self, raw_data=None, height=None, width=None, value=0, direction_masks=None):
-        """
-        `__init__(raw_data)`\n
-        `__init__(height, width, value=0)`\n
-        """
+#     def __init__(self, raw_data=None, height=None, width=None, value=0, direction_masks=None):
+#         """
+#         `__init__(raw_data)`\n
+#         `__init__(height, width, value=0)`\n
+#         """
 
-        if raw_data is not None:
-            if isinstance(raw_data, Grid):
-                self._raw_grid = deepcopy(raw_data.raw)
-            else:
-                self._raw_grid = deepcopy(raw_data)
-        else:
-            self._raw_grid = [[value] * width for _ in range(height)]
+#         if raw_data is not None:
+#             if isinstance(raw_data, Grid):
+#                 self._raw_grid = deepcopy(raw_data.raw)
+#             else:
+#                 self._raw_grid = deepcopy(raw_data)
+#         else:
+#             self._raw_grid = [[value] * width for _ in range(height)]
 
-        if direction_masks is None and isinstance(raw_data, Grid):
-            self._direction_masks = raw_data._direction_masks
-        else:
-            self._direction_masks = direction_masks
+#         if direction_masks is None and isinstance(raw_data, Grid):
+#             self._direction_masks = raw_data._direction_masks
+#         else:
+#             self._direction_masks = direction_masks
 
-        if direction_masks is not None:
-            self._unit_vector_cache = defaultdict(list)
+#         if direction_masks is not None:
+#             self._unit_vector_cache = defaultdict(list)
 
-            for r in range(self.height):
-                for c in range(self.width):
-                    if self._direction_masks["up"][r][c]:
-                        self._unit_vector_cache[r, c].append((-1, 0))
-                    if self._direction_masks["down"][r][c]:
-                        self._unit_vector_cache[r, c].append((1, 0))
-                    if self._direction_masks["left"][r][c]:
-                        self._unit_vector_cache[r, c].append((0, -1))
-                    if self._direction_masks["right"][r][c]:
-                        self._unit_vector_cache[r, c].append((0, 1))
+#             for r in range(self.height):
+#                 for c in range(self.width):
+#                     if self._direction_masks["up"][r][c]:
+#                         self._unit_vector_cache[r, c].append((-1, 0))
+#                     if self._direction_masks["down"][r][c]:
+#                         self._unit_vector_cache[r, c].append((1, 0))
+#                     if self._direction_masks["left"][r][c]:
+#                         self._unit_vector_cache[r, c].append((0, -1))
+#                     if self._direction_masks["right"][r][c]:
+#                         self._unit_vector_cache[r, c].append((0, 1))
 
-    def __getitem__(self, coord):
-        return self._raw_grid[coord[0]][coord[1]]
+#     def __getitem__(self, coord):
+#         return self._raw_grid[coord[0]][coord[1]]
 
-    def __setitem__(self, coord, value):
-        self._raw_grid[coord[0]][coord[1]] = value
+#     def __setitem__(self, coord, value):
+#         self._raw_grid[coord[0]][coord[1]] = value
 
-    def __str__(self):
-        lines = ["[" + " ".join(map(str, line)) + "]" for line in self._raw_grid]
-        aligned_lines = [" " + lines[i] if i else "[" + lines[i] for i in range(len(lines))]
+#     def __str__(self):
+#         lines = ["[" + " ".join(map(str, line)) + "]" for line in self._raw_grid]
+#         aligned_lines = [" " + lines[i] if i else "[" + lines[i] for i in range(len(lines))]
 
-        return "\n".join(aligned_lines) + "]"
+#         return "\n".join(aligned_lines) + "]"
 
-    @property
-    def raw(self):
-        return self._raw_grid
+#     @property
+#     def raw(self):
+#         return self._raw_grid
 
-    @property
-    def height(self):
-        return len(self._raw_grid)
+#     @property
+#     def height(self):
+#         return len(self._raw_grid)
 
-    @property
-    def width(self):
-        return len(self._raw_grid[0])
+#     @property
+#     def width(self):
+#         return len(self._raw_grid[0])
 
-    def copy(self):
-        return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
-
-    # def traverse_neighbor(self, r, c, action, filter=lambda r, c: True):
-    #     if self._direction_masks is None:
-    #         vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
-    #     else:
-    #         vectors = self._unit_vector_cache[r, c]
-
-    #     return [action(r + dr, c + dc) for dr, dc in vectors
-    #                                    if 0 <= r + dr < self.height
-    #                                       and 0 <= c + dc < self.width
-    #                                       and filter(r + dr, c + dc)]
-
-
-    # def traverse(self, action, filter):
-    #     return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
+#     def copy(self):
+#         return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
 
 def main():

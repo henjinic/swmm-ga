@@ -4,6 +4,14 @@ from copy import deepcopy
 from itertools import chain
 
 
+def zeros(height, width):
+    return [[0] * width for _ in range(height)]
+
+
+def ones(height, width):
+    return [[1] * width for _ in range(height)]
+
+
 def grid_sum(grid):
     return sum(chain.from_iterable(grid))
 
