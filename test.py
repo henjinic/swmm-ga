@@ -26,6 +26,8 @@ print(parent1.cost_detail)
 print(parent2.cost_detail)
 
 child1, child2 = parent1.crossover(parent2)
+child1.mutate()
+child2.mutate()
 print(child1.cost_detail)
 print(child2.cost_detail)
 

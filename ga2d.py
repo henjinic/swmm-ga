@@ -2,7 +2,7 @@
 import random
 from operator import attrgetter
 
-from gridutils import grid_sum, labeled_sum
+from gridutils import count_neighbor, get_diff_coords, grid_sum, labeled_sum
 from logger import GALogger27
 from mathutils import Grid, lerp
 from randutils import choices, randpop
@@ -34,7 +34,8 @@ class Chromosome:
         child_genes1 = self._genes.copy()
         child_genes2 = self._genes.copy()
 
-        diff_coords = self._genes.get_diff_coords(partner._genes)
+        # diff_coords = self._genes.get_diff_coords(partner._genes)
+        diff_coords = get_diff_coords(self._genes.raw, partner._genes.raw)
 
         for (gene1, gene2), coords in diff_coords.items():
             mask = Grid(height=self.genes.height, width=self.genes.width)
@@ -296,7 +297,8 @@ class GeneRuler:
         if code in self._submasks and self._submasks[code][r, c] == 0:
             return 0
 
-        weight = self.CLUSTER_COHESION ** grid.count_neighbor(r, c, [code])
+        # weight = self.CLUSTER_COHESION ** grid.count_neighbor(r, c, [code])
+        weight = self.CLUSTER_COHESION ** count_neighbor(grid.raw, r, c, [code])
 
         for rule in self._rules:
             weight *= rule.weigh(grid, r, c, code)

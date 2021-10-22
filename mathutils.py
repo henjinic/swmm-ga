@@ -74,75 +74,72 @@ class Grid:
     def copy(self):
         return Grid(raw_data=deepcopy(self._raw_grid), direction_masks=self._direction_masks)
 
-    # def get_coords(self, filter):
-    #     return [(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
+    # def analyze_cluster(self, masks=None):
+    #     """
+    #     ```
+    #     return: (
+    #         defaultdict {code: [size of each cluster]},
+    #         the number of clusters
+    #     )
+    #     ```
+    #     """
+    #     if masks is None:
+    #         masks = {}
+    #         result = defaultdict(lambda : dict(sizes=[], neighbors=[]))
+    #     else:
+    #         result = defaultdict(lambda : dict(sizes=[], neighbors=[], is_near_mask=[]))
 
-    def analyze_cluster(self, masks=None):
-        """
-        ```
-        return: (
-            defaultdict {code: [size of each cluster]},
-            the number of clusters
-        )
-        ```
-        """
-        if masks is None:
-            masks = {}
-            result = defaultdict(lambda : dict(sizes=[], neighbors=[]))
-        else:
-            result = defaultdict(lambda : dict(sizes=[], neighbors=[], is_near_mask=[]))
+    #     check_grid = self.copy()
 
-        check_grid = self.copy()
+    #     for r in range(self.height):
+    #         for c in range(self.width):
+    #             if check_grid[r, c] == 0:
+    #                 continue
 
-        for r in range(self.height):
-            for c in range(self.width):
-                if check_grid[r, c] == 0:
-                    continue
+    #             code, count, neighbors, is_near_mask = check_grid._fill_zeros_in_cluster(r, c, self, masks)
+    #             result[code]["sizes"].append(count)
+    #             result[code]["neighbors"].append(neighbors)
+    #             if code in masks:
+    #                 result[code]["is_near_mask"].append(is_near_mask)
 
-                code, count, neighbors, is_near_mask = check_grid._fill_zeros_in_cluster(r, c, self, masks)
-                result[code]["sizes"].append(count)
-                result[code]["neighbors"].append(neighbors)
-                if code in masks:
-                    result[code]["is_near_mask"].append(is_near_mask)
+    #     return result, sum(len(result[code]["sizes"]) for code in result)
 
-        return result, sum(len(result[code]["sizes"]) for code in result)
+    # def _fill_zeros_in_cluster(self, r, c, original_map, masks):
+    #     target_code = self[r, c]
+    #     target_coords = [(r, c)]
+    #     count = 0
+    #     neighbors = []
 
-    def _fill_zeros_in_cluster(self, r, c, original_map, masks):
-        target_code = self[r, c]
-        target_coords = [(r, c)]
-        count = 0
-        neighbors = []
+    #     if target_code in masks:
+    #         is_near_mask = [False] * len(masks[target_code])
+    #     else:
+    #         is_near_mask = None
 
-        if target_code in masks:
-            is_near_mask = [False] * len(masks[target_code])
-        else:
-            is_near_mask = None
+    #     while target_coords:
+    #         r, c = target_coords.pop(0)
+    #         neighbors += self.traverse_neighbor(r, c,
+    #                                             lambda r, c: original_map[r, c],
+    #                                             lambda r, c: original_map[r, c] != 0
+    #                                                          and original_map[r, c] != target_code)
 
-        while target_coords:
-            r, c = target_coords.pop(0)
-            neighbors += self.traverse_neighbor(r, c,
-                                                lambda r, c: original_map[r, c],
-                                                lambda r, c: original_map[r, c] != 0
-                                                             and original_map[r, c] != target_code)
+    #         if target_code in masks:
+    #             for i, mask in enumerate(masks[target_code]):
+    #                 if is_near_mask[i]:
+    #                     continue
 
-            if target_code in masks:
-                for i, mask in enumerate(masks[target_code]):
-                    if is_near_mask[i]:
-                        continue
+    #                 is_near_mask[i] = bool(mask.count_neighbor(r, c, [1]))
 
-                    is_near_mask[i] = bool(mask.count_neighbor(r, c, [1]))
+    #         self[r, c] = 0
+    #         count += 1
 
-            self[r, c] = 0
-            count += 1
+    #         target_coords += self.traverse_neighbor(r, c, lambda r, c: (r, c),
+    #                                                       lambda r, c: self[r, c] == target_code
+    #                                                                    and (r, c) not in target_coords)
 
-            target_coords += self.traverse_neighbor(r, c, lambda r, c: (r, c),
-                                                          lambda r, c: self[r, c] == target_code
-                                                                       and (r, c) not in target_coords)
+    #     return target_code, count, list(set(neighbors)), is_near_mask
 
-        return target_code, count, list(set(neighbors)), is_near_mask
-
-    def count_neighbor(self, r, c, targets):
-        return sum(self.traverse_neighbor(r, c, lambda r, c: 1, lambda r, c: self[r, c] in targets))
+    # def count_neighbor(self, r, c, targets):
+    #     return sum(self.traverse_neighbor(r, c, lambda r, c: 1, lambda r, c: self[r, c] in targets))
 
     def traverse_neighbor(self, r, c, action, filter=lambda r, c: True):
         if self._direction_masks is None:
@@ -155,45 +152,9 @@ class Grid:
                                           and 0 <= c + dc < self.width
                                           and filter(r + dr, c + dc)]
 
-    def get_diff_coords(self, partner):
-        """
-        ```
-        # example
-        arg1: [[1, 2], | arg2: [[1, 1],
-               [1, 1]] |        [2, 3]]
-
-        return: defaultdict {
-            frozenset {1, 2}: [(0, 1), (1, 0)]
-            frozenset {1, 3}: [(1, 1)]
-        }
-        ```
-        """
-        result = defaultdict(list)
-
-        for r in range(self.height):
-            for c in range(self.width):
-                if self[r, c] != partner[r, c]:
-                    result[frozenset((self[r, c], partner[r, c]))].append((r, c))
-
-        return result
-
-    # def sum(self):
-    #     return sum(self.traverse(lambda r, c: self[r, c], lambda r, c: True))
 
     def traverse(self, action, filter):
         return [action(r, c) for r in range(self.height) for c in range(self.width) if filter(r, c)]
-
-    # def each_sum(self, reference_grid):
-    #     result = defaultdict(int)
-
-    #     for r in range(self.height):
-    #         for c in range(self.width):
-    #             if self[r, c] == 0:
-    #                 continue
-
-    #             result[self[r, c]] += reference_grid[r][c]
-
-    #     return result
 
 
 def main():

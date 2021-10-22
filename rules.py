@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from gridutils import labeled_sum
+from gridutils import analyze_cluster, count_neighbor, labeled_sum
 from mathutils import Grid
 
 
@@ -16,18 +16,24 @@ class MagnetRule:
         self._label = label
 
     def evaluate(self, genes):
-        cluster_result, cluster_count = genes.analyze_cluster({self._gene: [self._mask]})
+        # cluster_result, cluster_count = genes.analyze_cluster({self._gene: [self._mask]})
+
+        cluster_result = analyze_cluster(genes.raw)
 
         result = 0
 
-        for is_nears in cluster_result[self._gene]["is_near_mask"]:
-            if not is_nears[0]:
-                result += 1
+        # for is_nears in cluster_result[self._gene]["is_near_mask"]:
+        #     if not is_nears[0]:
+        #         result += 1
+
+        for cluster in cluster_result[self._gene]:
+            result += all(self._mask.raw[r][c] == 0 for r, c in cluster["neighbor_coords"])
 
         return (result - self._ideal) / (self._goal - self._ideal)
 
     def weigh(self, genes, r, c, gene):
-        return 10 if gene == self._gene and self._mask.count_neighbor(r, c, [1]) > 0 else 1
+        # return 10 if gene == self._gene and self._mask.count_neighbor(r, c, [1]) > 0 else 1
+        return 10 if gene == self._gene and count_neighbor(self._mask.raw, r, c, [1]) > 0 else 1
 
 
 class AreaMaxRule:
@@ -86,10 +92,16 @@ class ClusterSizeMinRule:
         return self._minimum
 
     def evaluate(self, genes):
-        cluster_result, _ = genes.analyze_cluster()
+        # cluster_result, _ = genes.analyze_cluster()
+        cluster_result = analyze_cluster(genes.raw)
+
+        # if self._gene in cluster_result:
+        #     minimum = min(cluster_result[self._gene]["sizes"])
+        # else:
+        #     minimum = 0
 
         if self._gene in cluster_result:
-            minimum = min(cluster_result[self._gene]["sizes"])
+            minimum = min(cluster["count"] for cluster in cluster_result[self._gene])
         else:
             minimum = 0
 
@@ -112,7 +124,8 @@ class ClusterCountMaxRule:
         return self._maximum
 
     def evaluate(self, genes):
-        _, cluster_count = genes.analyze_cluster()
+        cluster_result = analyze_cluster(genes.raw)
+        cluster_count = sum(len(clusters) for clusters in cluster_result.values())
 
         return max(0, cluster_count - self._maximum)
 
@@ -132,19 +145,24 @@ class AttractionRule:
         self._goal = goal
 
     def evaluate(self, genes):
-        cost = 0
-        cluster_result, _ = genes.analyze_cluster()
+        # cost = 0
+        # cluster_result, _ = genes.analyze_cluster()
+        cluster_result = analyze_cluster(genes.raw)
 
-        for neighbors_of_a_cluster in cluster_result[self._from_gene]["neighbors"]:
-            if self._to_gene in neighbors_of_a_cluster:
-                continue
+        # for neighbors_of_a_cluster in cluster_result[self._from_gene]["neighbors"]:
+        #     if self._to_gene in neighbors_of_a_cluster:
+        #         continue
 
-            cost += 1
+        #     cost += 1
+
+        cost = sum(all(genes.raw[r][c] != self._to_gene for r, c in cluster["neighbor_coords"])
+                   for cluster in cluster_result[self._from_gene])
 
         return (cost - self._ideal) / (self._goal - self._ideal)
 
     def weigh(self, genes, r, c, gene):
-        if gene == self._from_gene and genes.count_neighbor(r, c, [self._to_gene]) > 0:
+        # if gene == self._from_gene and genes.count_neighbor(r, c, [self._to_gene]) > 0:
+        if gene == self._from_gene and count_neighbor(genes.raw, r, c, [self._to_gene]) > 0:
             return 10
         else:
             return 1
@@ -168,14 +186,17 @@ class RepulsionRule:
                 if genes[r, c] != self._gene1:
                     continue
 
-                cost += genes.count_neighbor(r, c, [self._gene2])
+                # cost += genes.count_neighbor(r, c, [self._gene2])
+                cost += count_neighbor(genes.raw, r, c, [self._gene2])
 
         return (cost - self._ideal) / (self._goal - self._ideal)
 
     def weigh(self, genes, r, c, gene):
-        if gene == self._gene1 and genes.count_neighbor(r, c, [self._gene2]) > 0:
+        # if gene == self._gene1 and genes.count_neighbor(r, c, [self._gene2]) > 0:
+        if gene == self._gene1 and count_neighbor(genes.raw, r, c, [self._gene2]) > 0:
             return 0
-        elif gene == self._gene2 and genes.count_neighbor(r, c, [self._gene1]) > 0:
+        # elif gene == self._gene2 and genes.count_neighbor(r, c, [self._gene1]) > 0:
+        elif gene == self._gene2 and count_neighbor(genes.raw, r, c, [self._gene1]) > 0:
             return 0
         else:
             return 1
