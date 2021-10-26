@@ -38,7 +38,7 @@ class GALogger:
 
 class GALogger27:
 
-    def __init__(self, base_dir, model_name):
+    def __init__(self, base_dir, model_name, rule_names):
         """model_name: "now" -> `datetime.now().strftime("%Y-%m-%d_%H-%M-%S")`"""
         if model_name == "now":
             model_name = str(datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
@@ -49,22 +49,20 @@ class GALogger27:
 
         self._costs_path = os.path.join(self._model_dir, "costs.csv")
         with open(self._costs_path, "w") as f:
-            f.write("generation,rank,costs\n")
+            f.write("generation,rank,total," + ",".join(rule_names) + "\n")
 
-    def log(self, generation, ranking, gene, costs):
+    def log(self, generation, ranking, gene, total, costs):
         dir_path = os.path.join(self._model_dir, str(generation))
 
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
 
         with open(self._costs_path, "a") as f:
-            f.write(",".join(map(str, [generation, ranking] + costs)))
-            f.write("\n")
+            f.write(",".join(map(str, [generation, ranking, total] + costs)) + "\n")
 
         with open(os.path.join(dir_path, str(ranking) + ".csv"), "w") as f:
             for line in gene:
-                f.write(",".join(map(str, line)))
-                f.write("\n")
+                f.write(",".join(map(str, line)) + "\n")
 
 
 def main():

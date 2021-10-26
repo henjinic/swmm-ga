@@ -4,6 +4,14 @@ from copy import deepcopy
 from itertools import chain
 
 
+_DIRECTION_VECTORS = {}
+_DEFAULT_DIRECTION_VECTORS = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+
+def configure(direction_vectors):
+    global _DIRECTION_VECTORS
+    _DIRECTION_VECTORS = direction_vectors
+
+
 def zeros(height, width):
     return [[0] * width for _ in range(height)]
 
@@ -46,13 +54,12 @@ def get_diff_coords(grid1, grid2):
 
 
 def is_in(grid, r, c):
-    if 0 <= r < len(grid) and 0 <= c < len(grid[0]):
-        return True
-    return False
+    return 0 <= r < len(grid) and 0 <= c < len(grid[0])
 
 
 def count_neighbor(grid, r, c, targets):
-    vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    # vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    vectors = _DIRECTION_VECTORS.get((r, c), _DEFAULT_DIRECTION_VECTORS)
     coords = [(r + dr, c + dc) for dr, dc in vectors]
     return sum(1 for r, c in coords if is_in(grid, r, c) and grid[r][c] in targets)
 
@@ -82,13 +89,15 @@ def _fill_zeros_in_cluster(check_grid, r, c, target, grid):
 
 
 def _get_neighbor_coords_exclude(grid, r, c, exclusions):
-    vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    # vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    vectors = _DIRECTION_VECTORS.get((r, c), _DEFAULT_DIRECTION_VECTORS)
     coords = [(r + dr, c + dc) for dr, dc in vectors]
     return {(r, c) for r, c in coords if is_in(grid, r, c) and grid[r][c] not in exclusions}
 
 
 def get_neighbor_coords_include(grid, r, c, inclusions):
-    vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    # vectors = [(-1, 0), (0, -1), (0, 1), (1, 0)]
+    vectors = _DIRECTION_VECTORS.get((r, c), _DEFAULT_DIRECTION_VECTORS)
     coords = [(r + dr, c + dc) for dr, dc in vectors]
     return {(r, c) for r, c in coords if is_in(grid, r, c) and grid[r][c] in inclusions}
 

@@ -36,12 +36,13 @@ def load_site_data(path):
     road_mask = create_2dlist()
     road_area_map = create_2dlist()
     neargreen_mask = create_2dlist()
-    direction_masks = {
-        "up": create_2dlist(),
-        "down": create_2dlist(),
-        "left": create_2dlist(),
-        "right": create_2dlist()
-        }
+    direction_vectors = defaultdict(list)
+    # direction_masks = {
+    #     "up": create_2dlist(),
+    #     "down": create_2dlist(),
+    #     "left": create_2dlist(),
+    #     "right": create_2dlist()
+    #     }
     original_areas = defaultdict(float)
 
 # 3
@@ -77,7 +78,9 @@ def load_site_data(path):
             else:
                 r = int(key[1:4])
                 c = int(key[4:6])
-                up, right, down, left = map(lambda x: 1 if x == "T" else 0, key[6:10])
+                # up, right, down, left = map(lambda x: 1 if x == "T" else 0, key[6:10])
+                # up, right, down, left = map(lambda x: 1 if x == "T" else 0, key[6:10])
+                up, right, down, left = (truth == "T" for truth in key[6:10])
 
                 if tag == "상업시설":
                     tag += "1" if r < 40 else "2"
@@ -87,15 +90,23 @@ def load_site_data(path):
                 original_map[r][c] = TAG_TO_CODE[tag]
                 mask[r][c] = 1
                 area_map[r][c] = float(area)
-                direction_masks["up"][r][c] = up
-                direction_masks["down"][r][c] = down
-                direction_masks["left"][r][c] = left
-                direction_masks["right"][r][c] = right
+                if up:
+                    direction_vectors[r, c].append((-1, 0))
+                if right:
+                    direction_vectors[r, c].append((0, 1))
+                if down:
+                    direction_vectors[r, c].append((1, 0))
+                if left:
+                    direction_vectors[r, c].append((0, -1))
+                # direction_masks["up"][r][c] = up
+                # direction_masks["down"][r][c] = down
+                # direction_masks["left"][r][c] = left
+                # direction_masks["right"][r][c] = right
                 original_areas[original_map[r][c]] += area_map[r][c]
 
-    original_areas = [v for k, v in sorted(original_areas.items())]
+    # original_areas = [v for k, v in sorted(original_areas.items())]
 
-    return original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_masks, original_areas
+    return original_map, mask, area_map, road_mask, road_area_map, neargreen_mask, direction_vectors, original_areas
 
 
 def create_big_road_mask(road_area_map):

@@ -3,8 +3,8 @@ import random
 from copy import deepcopy
 from operator import attrgetter
 
-from gridutils import (count_neighbor, get_diff_coords, get_neighbor_coords_include,
-                       grid_sum, labeled_sum, ones, zeros)
+from gridutils import (analyze_cluster, configure, count_neighbor, get_diff_coords,
+                       get_neighbor_coords_include, grid_sum, labeled_sum, ones, zeros)
 from logger import GALogger27
 from mathutils import lerp
 from randutils import choices, randpop
@@ -35,15 +35,12 @@ class Chromosome:
         return self._costs
 
     def crossover(self, partner):
-        # child_genes1 = self._genes.copy()
         child_genes1 = deepcopy(self._genes)
-        # child_genes2 = self._genes.copy()
         child_genes2 = deepcopy(self._genes)
 
         diff_coords = get_diff_coords(self._genes, partner._genes)
 
         for (gene1, gene2), coords in diff_coords.items():
-            # mask = Grid(height=self.genes.height, width=self.genes.width)
             mask = zeros(self._height, self._width)
             for r, c in coords:
                 mask[r][c] = 1
@@ -61,7 +58,6 @@ class Chromosome:
         r_start = random.randint(0, self._height - region_height)
         c_start = random.randint(0, self._width - region_width)
 
-        # region_mask = Grid(height=self.genes.height, width=self.genes.width)
         region_mask = zeros(self._height, self._width)
 
         for r in range(r_start, r_start + region_height):
@@ -84,7 +80,7 @@ class GeneticAlgorithm:
     def run(self, size=20, strategy="age", elitism=2, child_count=20,
             mutation_rate=0.05, stable_step_for_exit=20, is_logging=True):
         if is_logging:
-            logger = GALogger27("D:/_swmm_results", "now")
+            logger = GALogger27("D:/_swmm_results", "now", self._gene_ruler.rule_names)
 
         population = self._initialize(size)
         generation = 1
@@ -94,7 +90,8 @@ class GeneticAlgorithm:
 
         if is_logging:
             for i, chromosome in enumerate(population):
-                logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
+                costs = [chromosome.cost_detail[rule_name] for rule_name in self._gene_ruler.rule_names]
+                logger.log(generation, i, chromosome.genes, chromosome.cost, costs)
 
         best_cost = population[0].cost
         stable_step = 0
@@ -112,7 +109,8 @@ class GeneticAlgorithm:
 
             if is_logging:
                 for i, chromosome in enumerate(population):
-                    logger.log(generation, i, chromosome.genes.raw, [chromosome.cost, *chromosome.cost_detail.values()])
+                    costs = [chromosome.cost_detail[rule_name] for rule_name in self._gene_ruler.rule_names]
+                    logger.log(generation, i, chromosome.genes, chromosome.cost, costs)
 
             if population[0].cost == best_cost:
                 stable_step += 1
@@ -151,8 +149,8 @@ class GeneticAlgorithm:
         return result
 
     def _reproduce_two_children(self, population, mutation_rate):
-        parent1 = choices(population, list(lerp(1, 0.5, len(population))))
-        parent2 = choices(population, list(lerp(1, 0.5, len(population))))
+        parent1 = choices(population, list(lerp(1, 0.2, len(population))))
+        parent2 = choices(population, list(lerp(1, 0.2, len(population))))
         child1, child2 = parent1.crossover(parent2)
 
         if random.random() < mutation_rate:
@@ -167,25 +165,27 @@ class GeneticAlgorithm:
 class GeneRuler:
 
     CLUSTER_COHESION = 8
-    MARGINAL_PENALTY_FACTOR = 2
+    MARGINAL_PENALTY_FACTOR = 4
 
-    def __init__(self, height, width, codes, mask=None, direction_masks=None, area_map=None):
+    def __init__(self, height, width, codes, mask=None, direction_vectors=None, area_map=None):
         self._height = height
         self._width = width
         self._codes = codes
 
         if mask is None:
-            # self._target_mask = Grid(height=height, width=width, value=1)
             self._target_mask = ones(height, width)
         else:
-            # self._target_mask = Grid(mask)
             self._target_mask = mask
 
         self._cluster_size = 1
         self._rules = []
         self._area_rules = []
         self._submasks = {}
-        self._direction_masks = direction_masks
+
+        if direction_vectors is not None:
+            configure(direction_vectors)
+
+        # self._direction_vectors = direction_vectors
 
         if area_map is None:
             self._area_map = ones(height, width)
@@ -196,33 +196,31 @@ class GeneRuler:
     def _cell_count(self):
         return grid_sum(self._target_mask)
 
+    @property
+    def rule_names(self):
+        return [str(rule) for rule in self._rules + self._area_rules]
+
     def add_rule(self, rule):
         if isinstance(rule, ClusterCountMaxRule):
             self._cluster_size = self._cell_count // (rule.maximum * 0.75)
-
         self._rules.append(rule)
 
     def add_area_rule(self, rule):
         self._area_rules.append(rule)
 
     def add_submask(self, code, submask):
-        # self._submasks[code] = Grid(submask)
         self._submasks[code] = submask
 
     def evaluate(self, genes):
         result = {}
-
-        for rule in self._rules:
-            result[str(rule)] = rule.evaluate(genes) ** GeneRuler.MARGINAL_PENALTY_FACTOR
-
+        cluster_result = analyze_cluster(genes)
+        for rule in self._rules + self._area_rules:
+            result[str(rule)] = rule.evaluate(genes, cluster_result) ** GeneRuler.MARGINAL_PENALTY_FACTOR
         result["total"] = sum(result.values())
-
         return result
 
     def generate(self):
-        # grid = Grid(height=self._height, width=self._width, direction_masks=self._direction_masks)
         grid = zeros(self._height, self._width)
-
         return self.fill(grid, self._target_mask, self._codes)
 
     def fill(self, genes, mask, codes=None):
