@@ -15,7 +15,7 @@ def randpop(sequence, weights=None):
 
 
 def _choices_index(weights):
-    weights = [0 if weight < 0 else weight for weight in weights]
+    weights = [0. if weight < 0 else float(weight) for weight in weights]
 
     if sum(weights) <= 0:
         return random.randrange(len(weights))

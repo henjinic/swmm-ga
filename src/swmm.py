@@ -2,6 +2,24 @@
 from dataloader import CODE_TO_TAG, HEIGHT, WIDTH
 
 
+class RunoffRule:
+
+    def __str__(self):
+        return "total_runoff"
+
+    def __init__(self, ideal, goal):
+        self._ideal = float(ideal)
+        self._goal = float(goal)
+        self._swmm_runner = SwmmRunner()
+
+    def evaluate(self, genes, cluster_result):
+        total_runoff = self._swmm_runner.calc_total_runoff(genes)
+        return (total_runoff - self._ideal) / (self._goal - self._ideal)
+
+    def weigh(self, genes, r, c, gene):
+        return 1
+
+
 class SwmmRunner:
 
     greenroof = {
@@ -61,7 +79,7 @@ class SwmmRunner:
             c = int(name[4:6])
             self._subcatchment_map[r][c] = subcatchment
 
-    def get_total_runoff(self, genes):
+    def calc_total_runoff(self, genes):
         for subcatchment_row, gene_row in zip(self._subcatchment_map, genes):
             for subcatchment, gene in zip(subcatchment_row, gene_row):
                 if subcatchment is None:
@@ -85,11 +103,11 @@ def load(path):
     with open(path) as f:
         genes = [[int(x) for x in line.split(",")] for line in f]
     runner = SwmmRunner()
-    result = runner.get_total_runoff(genes)
+    result = runner.calc_total_runoff(genes)
     print(result)
 
 
-ORIGINAL_PATH = "D:/_swmm/original.csv"
+ORIGINAL_PATH = "D:/dev/uos/swmm/original.csv"
 
 
-load(ORIGINAL_PATH)
+#load(ORIGINAL_PATH)

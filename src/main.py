@@ -2,11 +2,13 @@
 from dataloader import (create_big_road_mask, create_core_region_data, create_quiet_region_mask,
                         load_site_data, HEIGHT, TAG_TO_CODE, WIDTH)
 from ga2d import GeneticAlgorithm, GeneRuler
+from pprint import pprint
 from rules import (AreaMaxRule, AreaMinRule, AttractionRule,
                    ClusterCountMaxRule, MagnetRule, RepulsionRule)
+from swmm import RunoffRule
 
 
-SUB_OG_PATH = "../sub_og.csv"
+SUB_OG_PATH = "D:/dev/uos/swmm/sub_og.csv"
 
 
 COMMERCIAL_CORE1 = (13, 52)
@@ -87,9 +89,12 @@ ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["유보형
 ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족복합용지"], 0, 1))
 ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시설"], 0, 1))
 
+# runoff
+ruler.add_rule(RunoffRule(50000, 100000))
 
 ga = GeneticAlgorithm(ruler)
-best = ga.run(size=4, strategy="cost", child_count=4, mutation_rate=0.9, stable_step_for_exit=10, is_logging=False)
+best = ga.run(size=8, strategy="cost", child_count=8, mutation_rate=0.9, stable_step_for_exit=20, is_logging=False)
 # best = ga.run(size=100, strategy="cost", child_count=100, mutation_rate=0.9, stable_step_for_exit=50, is_logging=True)
 # best = ga.run(size=40, strategy="age", elitism=4, mutation_rate=0.9, stable_step_for_exit=50, is_logging=True)
-print("best chromosome details", best.cost_detail)
+print("---- best chromosome details ----")
+pprint(best.cost_detail)

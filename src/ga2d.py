@@ -80,7 +80,7 @@ class GeneticAlgorithm:
         generation = 1
 
         print(generation, ">>>", [int(x.cost) for x in population])
-        print(population[0].cost_detail)
+        # print(population[0].cost_detail)
 
         if is_logging:
             for i, chromosome in enumerate(population):
@@ -99,7 +99,7 @@ class GeneticAlgorithm:
             generation += 1
 
             print(generation, ">>>", [int(x.cost) for x in population])
-            print(population[0].cost_detail)
+            # print(population[0].cost_detail)
 
             if is_logging:
                 for i, chromosome in enumerate(population):
@@ -122,7 +122,7 @@ class GeneticAlgorithm:
         return result
 
     def _cost_based_step(self, population, chlid_count, mutation_rate):
-        result = population.copy()
+        result = population[:]
         for _ in range(chlid_count // 2):
             result += self._reproduce_two_children(population, mutation_rate)
         result.sort(key=attrgetter("cost"))

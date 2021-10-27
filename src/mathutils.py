@@ -3,7 +3,7 @@
 
 def lerp(start, end, size):
     """## Linear Interpolation"""
-    gap = (end - start) / (size - 1)
+    gap = float(end - start) / (size - 1)
     for i in range(size - 1):
         yield start + i * gap
     yield end
