@@ -1,1 +1,1 @@
-python -m cProfile -s tottime main.py > profile.log
+python -m cProfile -s tottime src/main.py > profile.log
