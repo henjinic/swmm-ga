@@ -1,0 +1,83 @@
+#PCSWMM project file
+#Please do not edit
+[General]
+PCSWMM.NET Version=7.4.3240
+SWMM5 Version=5.1.015
+Version=3
+Package Path=D:\_swmm\0923\1D model_0921.pcz
+Last Report Date=10/27/2021 3:24:52 PM
+[2D]
+2DModeling=False
+[Project Summary]
+Compute Time=7 seconds
+Routing Error=-0.235
+Runoff Error=-0.133
+Run Incomplete=False
+[Authors]
+Author0=mmm9026@uos.ac.kr,44496.6421607176
+[Layers]
+layer0=Subcatchments
+layer1=Outlets
+layer2=Weirs
+layer3=Orifices
+layer4=Pumps
+layer5=Conduits
+layer6=Storages
+layer7=Dividers
+layer8=Outfalls
+layer9=Junctions
+[Graph]
+Plotting Position=Gringorten
+[Erosion]
+ErosionOn=False
+Use C TS=False
+Calculate LS=False
+Use TSS=False
+[Scenarios]
+"Scenarios0"="D:\dev\uos\swmm\PCSWMM\1D model_0921.inp",False,False,1D model_0921
+"Scenarios1"="D:\_swmm\0923\1D model_0921.inp",False,False,1D model_0921
+"Scenarios2"="D:\규원\2021_졸업연구\0916_수정\SWMM\1D model_0916수정.inp",False,False,1D model_0916수정
+"Scenarios3"="D:\1D model_GA\1D model.inp",False,False,1D model
+"Scenarios4"="D:\1D model_GA\1D model_new.inp",False,False,1D model_new
+"Scenarios5"="D:\1D_to_2Dmodel\1D model_new.inp",False,False,1D model_new
+"Scenarios6"="D:\1D_to_2Dmodel\1D_to_2D.inp",False,False,1D_to_2D
+"Scenarios7"="D:\1D model_GA\1D model_new_GAtest.inp",False,False,1D model_new_GAtest
+"Scenarios8"="D:\1D_to_2Dmodel\1Dto_2Dmodel.inp",False,False,1Dto_2Dmodel
+"Scenarios9"="D:\1D model_to Subcatchment\1D_model_to Sub.inp",False,False,1D_model_to Sub
+"Scenarios10"="D:\1D model_to Subcatchment\1D_model_to Sub_GAtest.inp",False,False,1D_model_to Sub_GAtest
+"Scenarios11"="D:\1D model_to Subcatchment\1D_model_to Sub_GAtest0503.inp",False,False,1D_model_to Sub_GAtest0503
+"Scenarios12"="D:\1D model_to Subcatchment\2D_model_to Sub.inp",False,False,2D_model_to Sub
+"Scenarios13"="D:\1D model_to Subcatchment\1D_Algorithm.inp",False,False,1D_Algorithm
+"Scenarios14"="D:\1D model_to Subcatchment\1D_model_GA2.inp",False,False,1D_model_GA2
+"Scenarios15"="D:\1D model_to Subcatchment\1D_model_GA3.inp",False,False,1D_model_GA3
+"Scenarios16"="D:\1D model_to Subcatchment\1D_model_GA4.inp",False,False,1D_model_GA4
+"Scenarios17"="D:\1D model_to Subcatchment\1D_model_GA5.inp",False,False,1D_model_GA5
+"Scenarios18"="D:\1D model_to Subcatchment\1D_model_GA6.inp",False,False,1D_model_GA6
+"Scenarios19"="D:\1D model_to Subcatchment\1D_model_GA7.inp",False,False,1D_model_GA7
+"Scenarios20"="D:\1D model_to Subcatchment\1D_model_GA8.inp",False,False,1D_model_GA8
+"Scenarios21"="D:\1D model_to Subcatchment\2D_model_GA6.inp",False,False,2D_model_GA6
+"Scenarios22"="D:\1D model_to Subcatchment\2D_model_GA5.inp",False,False,2D_model_GA5
+"Scenarios23"="D:\1D model_to Subcatchment\2D_model_GA8.inp",False,False,2D_model_GA8
+"Scenarios24"="D:\1D model_to Subcatchment\1D_model_GA10.inp",False,False,1D_model_GA10
+"Scenarios25"="D:\1D model_to Subcatchment\2D_model_GA10.inp",False,False,2D_model_GA10
+"Scenarios26"="D:\1D model_to Subcatchment\1D_model_GA1.inp",False,False,1D_model_GA1
+"Scenarios27"="D:\1D model_to Subcatchment\2D_model_GA1.inp",False,False,2D_model_GA1
+"Scenarios28"="D:\1D model_to Subcatchment\1D_model_GA1''.inp",False,False,1D_model_GA1''
+"Scenarios29"="D:\1D model_to Subcatchment\2D_model_GA1''.inp",False,False,2D_model_GA1''
+"Scenarios30"="D:\1D model_to Subcatchment\1D_model_GA2''.inp",False,False,1D_model_GA2''
+"Scenarios31"="D:\1D model_to Subcatchment\2D_model_GA3''.inp",False,False,2D_model_GA3''
+"Scenarios32"="D:\1D model_to Subcatchment\1D_model_GA3''.inp",False,False,1D_model_GA3''
+"Scenarios33"="D:\규원\2021_졸업연구\졸업연구 자료\PCSWMM\1D model_OG.inp",False,False,1D model_OG
+"Scenarios34"="D:\규원\2021_졸업연구\졸업연구 자료\PCSWMM\2D model_OG.inp",False,False,2D model_OG
+"Scenarios35"="D:\1D model_to Subcatchment\1D_model_OG.inp",False,False,1D_model_OG
+"Scenarios36"="D:\규원\2021_졸업연구\0916_수정\1D model_0916수정.inp",False,False,1D model_0916수정
+"Scenarios37"="D:\규원\2021_졸업연구\졸업연구 자료\PCSWMM\1D model_0921.inp",False,False,1D model_0921
+"Scenarios38"="D:\규원\2021_졸업연구\0921_수정\1D model_0921.inp",False,False,1D model_0921
+[Scripts]
+Script0=swmm
+Script1=siteloader
+Script2=mathutils
+Script3=logger
+Script4=ga2d
+Script5=main
+Script6=runoff
