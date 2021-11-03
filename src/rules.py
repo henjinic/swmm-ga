@@ -31,10 +31,10 @@ class AreaMaxRule:
     def __init__(self, gene, maximum, area_map):
         self._gene = gene
         self._area_map = area_map
-        self._maximum = maximum
+        self._maximum = float(maximum)
 
     def evaluate(self, genes, cluster_result):
-        return max(0, labeled_sum(genes, self._area_map)[self._gene] - self._maximum)
+        return max(0., labeled_sum(genes, self._area_map)[self._gene] - self._maximum) / 0.09
 
     def weigh(self, genes, r, c, gene, accumulated_areas):
         if gene != self._gene:
@@ -50,10 +50,10 @@ class AreaMinRule:
     def __init__(self, gene, minimum, area_map):
         self._gene = gene
         self._area_map = area_map
-        self._minimum = minimum
+        self._minimum = float(minimum)
 
     def evaluate(self, genes, cluster_result):
-        return max(0, self._minimum - labeled_sum(genes, self._area_map)[self._gene])
+        return max(0., self._minimum - labeled_sum(genes, self._area_map)[self._gene]) / 0.09
 
     def weigh(self, genes, r, c, gene, accumulated_areas):
         if gene != self._gene:
