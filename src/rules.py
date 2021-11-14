@@ -20,6 +20,7 @@ class MagnetRule:
         return (result - self._ideal) / (self._goal - self._ideal)
 
     def weigh(self, genes, r, c, gene):
+        return 1
         return 10 if gene == self._gene and count_neighbor(self._mask, r, c, [1]) > 0 else 1
 
 
@@ -28,13 +29,14 @@ class AreaMaxRule:
     def __str__(self):
         return "_".join(map(str, ["area_max", self._gene, "{:.4f}".format(self._maximum)]))
 
-    def __init__(self, gene, maximum, area_map):
+    def __init__(self, gene, maximum, area_map, factor):
         self._gene = gene
         self._area_map = area_map
         self._maximum = float(maximum)
+        self._factor = float(factor)
 
     def evaluate(self, genes, cluster_result):
-        return max(0., labeled_sum(genes, self._area_map)[self._gene] - self._maximum) / 0.09
+        return max(0., labeled_sum(genes, self._area_map)[self._gene] - self._maximum) / (0.09 * self._factor)
 
     def weigh(self, genes, r, c, gene, accumulated_areas):
         if gene != self._gene:
@@ -47,13 +49,14 @@ class AreaMinRule:
     def __str__(self):
         return "_".join(map(str, ["area_min", self._gene, "{:.4f}".format(self._minimum)]))
 
-    def __init__(self, gene, minimum, area_map):
+    def __init__(self, gene, minimum, area_map, factor):
         self._gene = gene
         self._area_map = area_map
         self._minimum = float(minimum)
+        self._factor = float(factor)
 
     def evaluate(self, genes, cluster_result):
-        return max(0., self._minimum - labeled_sum(genes, self._area_map)[self._gene]) / 0.09
+        return max(0., self._minimum - labeled_sum(genes, self._area_map)[self._gene]) / (0.09 * self._factor)
 
     def weigh(self, genes, r, c, gene, accumulated_areas):
         if gene != self._gene:
@@ -118,6 +121,7 @@ class AttractionRule:
         return (cost - self._ideal) / (self._goal - self._ideal)
 
     def weigh(self, genes, r, c, gene):
+        return 1
         if gene == self._from_gene and count_neighbor(genes, r, c, [self._to_gene]) > 0:
             return 10
         else:
@@ -145,6 +149,7 @@ class RepulsionRule:
         return (cost - self._ideal) / (self._goal - self._ideal)
 
     def weigh(self, genes, r, c, gene):
+        return 1
         if gene == self._gene1 and count_neighbor(genes, r, c, [self._gene2]) > 0:
             return 0
         elif gene == self._gene2 and count_neighbor(genes, r, c, [self._gene1]) > 0:

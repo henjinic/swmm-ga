@@ -37,7 +37,8 @@ ruler = GeneRuler(HEIGHT, WIDTH, list(range(1, 16)), mask, direction_vectors, ar
 
 # condition 0
 ruler.add_rule(ClusterCountMaxRule(250))
-ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map))
+ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]], area_map, 0.01))
+ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["공동주택"], original_areas[TAG_TO_CODE["공동주택"]] * 1.2, area_map, 0.01))
 
 # condition 1
 ruler.add_submask(TAG_TO_CODE["상업시설1"], commercial_region_mask1)
@@ -50,17 +51,17 @@ ruler.add_rule(MagnetRule(TAG_TO_CODE["상업시설2"], commercial_core_mask2, 0
 ruler.add_rule(MagnetRule(TAG_TO_CODE["업무시설1"], business_core_mask1, 0, 0.01, "business_core1"))
 ruler.add_rule(MagnetRule(TAG_TO_CODE["업무시설2"], business_core_mask2, 0, 0.01, "business_core2"))
 
-ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]] * 0.8, area_map))
-ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]] * 1.2, area_map))
+ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]] * 0.8, area_map, 0.01))
+ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["상업시설1"], original_areas[TAG_TO_CODE["상업시설1"]] * 1.2, area_map, 0.01))
 
-ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]] * 0.8, area_map))
-ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]] * 1.2, area_map))
+ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]] * 0.8, area_map, 0.01))
+ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["상업시설2"], original_areas[TAG_TO_CODE["상업시설2"]] * 1.2, area_map, 0.01))
 
-ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]] * 0.8, area_map))
-ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]] * 1.2, area_map))
+ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]] * 0.8, area_map, 0.01))
+ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["업무시설1"], original_areas[TAG_TO_CODE["업무시설1"]] * 1.2, area_map, 0.01))
 
-ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]] * 0.8, area_map))
-ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]] * 1.2, area_map))
+ruler.add_area_rule(AreaMinRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]] * 0.8, area_map, 0.01))
+ruler.add_area_rule(AreaMaxRule(TAG_TO_CODE["업무시설2"], original_areas[TAG_TO_CODE["업무시설2"]] * 1.2, area_map, 0.01))
 
 # condition 2
 ruler.add_submask(TAG_TO_CODE["공동주택"], quiet_region_mask)

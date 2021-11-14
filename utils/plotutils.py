@@ -55,7 +55,7 @@ def plot_site(*args):
 
 def main():
     gene = []
-    with open("D:/_swmm_results/2021-10-25_18-15-17/214/0.csv") as f:
+    with open("D:/_swmm_results/2021-11-11_05-55-08/404/0.csv") as f:
         for line in f:
             gene.append(list(map(int, line.split(","))))
 
