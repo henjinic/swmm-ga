@@ -123,7 +123,7 @@ def create_quiet_region_mask(point1, point2):
 
 
 def main():
-    site_data = load_site_data("sub_og.csv")
+    site_data = load_site_data("../sub_og.csv")
     original_map = site_data[0]
     big_road_mask = create_big_road_mask(site_data[4])
     quiet_region_mask = create_quiet_region_mask((10, 10), (20, 20))

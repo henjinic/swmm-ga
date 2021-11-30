@@ -94,7 +94,7 @@ ruler.add_rule(RepulsionRule(TAG_TO_CODE["공동주택"], TAG_TO_CODE["자족시
 ruler.add_rule(RunoffRule(50000, 75000))
 
 ga = GeneticAlgorithm(ruler)
-best = ga.run(size=40, strategy="cost", child_count=40, mutation_rate=0.9, stable_step_for_exit=50, is_logging=True)
+best = ga.run(size=100, strategy="cost", child_count=80, mutation_rate=0.9, stable_step_for_exit=50, is_logging=True)
 # best = ga.run(size=40, strategy="age", elitism=4, mutation_rate=0.9, stable_step_for_exit=50, is_logging=True)
 print("---- best chromosome details ----")
 pprint(best.cost_detail)

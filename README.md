@@ -5,7 +5,7 @@
 ## How to Run
 1. Open the PCSWMM project file.
 2. Open script window.
-3. Import all the scripts in *src* folder.
+3. Import all the scripts in *src* folder without ```__init__.py``` and *utils* folder.
 4. Set `SUB_OG_PATH` in *main.py* to path to *sub_og.csv*
 5. Run *main.py*
 
