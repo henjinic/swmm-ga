@@ -25,7 +25,7 @@ QUIET_DIVIDE_POINT1 = (43, 53)
 QUIET_DIVIDE_POINT2 = (48, 67)
 
 
-_, mask, area_map, _, road_area_map, neargreen_mask, direction_vectors, original_areas = load_site_data(SUB_OG_PATH)
+_, mask, area_map, _, road_area_map, neargreen_mask, direction_vectors, original_areas, _ = load_site_data(SUB_OG_PATH)
 big_road_mask = create_big_road_mask(road_area_map)
 quiet_region_mask = create_quiet_region_mask(QUIET_DIVIDE_POINT1, QUIET_DIVIDE_POINT2)
 commercial_core_mask1, commercial_region_mask1 = create_core_region_data(COMMERCIAL_CORE1, COMMERCIAL_CORE_OFFSET1)

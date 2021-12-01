@@ -107,7 +107,8 @@ def load(path):
     print(result)
 
 
-ORIGINAL_PATH = "D:/dev/uos/swmm/original.csv"
-
+#ORIGINAL_PATH = "D:/dev/uos/swmm/original.csv"
+#PATH = "D:/_swmm_results/2021-11-21_17-56-32/527/0.csv"
 
 #load(ORIGINAL_PATH)
+#load(PATH)

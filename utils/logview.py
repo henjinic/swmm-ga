@@ -5,7 +5,7 @@ from collections import defaultdict
 def main():
     data = defaultdict(list)
     finder = {}
-    with open("D:/_swmm_results/2021-11-11_05-55-08/costs.csv") as f:
+    with open("D:/_swmm_results/2021-11-21_17-56-32/costs.csv") as f:
         cost_names = list(f.readline().split(","))[2:]
         print(cost_names)
         for line in f:

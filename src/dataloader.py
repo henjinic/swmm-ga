@@ -26,8 +26,8 @@ TAG_TO_CODE = {
     }
 CODE_TO_TAG = {TAG_TO_CODE[tag]: tag for tag in TAG_TO_CODE}
 NEARGREEN_TAGS = [
+    "교육시설",
     "커뮤니티시설",
-    "교육시설"
     ]
 
 
@@ -38,6 +38,7 @@ def load_site_data(path):
     road_mask = zeros(HEIGHT, WIDTH)
     road_area_map = zeros(HEIGHT, WIDTH)
     neargreen_mask = zeros(HEIGHT, WIDTH)
+    neargreen_map = zeros(HEIGHT, WIDTH)
     direction_vectors = defaultdict(list)
     original_areas = defaultdict(float)
 
@@ -62,6 +63,8 @@ def load_site_data(path):
                 c = int(key[5:7])
                 if tag in NEARGREEN_TAGS:
                     neargreen_mask[r][c] = 1
+                    neargreen_map[r][c] = 16 + NEARGREEN_TAGS.index(tag)
+
             else:
                 r = int(key[1:4])
                 c = int(key[4:6])
@@ -86,7 +89,7 @@ def load_site_data(path):
                 original_areas[original_map[r][c]] += area_map[r][c]
 
     return (original_map, mask, area_map, road_mask, road_area_map,
-           neargreen_mask, direction_vectors, original_areas)
+           neargreen_mask, direction_vectors, original_areas, neargreen_map)
 
 
 def create_big_road_mask(road_area_map):
